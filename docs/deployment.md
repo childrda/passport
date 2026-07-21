@@ -21,8 +21,13 @@ must be reconsidered.
 
 ## 1. Application install
 
+For a **clean Ubuntu Server + Apache** walkthrough (apt packages, MySQL user,
+vhost, Certbot, and Google Workspace), use the root [README.md](../README.md).
+
+Condensed app steps:
+
 ```bash
-git clone <repo-url> passport
+git clone https://github.com/childrda/passport.git passport
 cd passport
 composer install --no-dev --optimize-autoloader
 cp .env.example .env
@@ -42,7 +47,6 @@ php artisan view:cache
 
 Point the web root at `public/`. Example Apache vhost document root:
 `/var/www/passport/public`.
-
 ## 2. Environment variables
 
 All deployment values come from `.env` via `config/reset.php`. Never hardcode
