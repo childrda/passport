@@ -7,6 +7,8 @@ use App\Exceptions\DirectoryApiException;
 use Google\Service\Directory;
 use Google\Service\Directory\User as DirectoryUserResource;
 use Google\Service\Exception as GoogleServiceException;
+use GuzzleHttp\Exception\ConnectException;
+use Illuminate\Support\Facades\Log;
 use Throwable;
 
 class GoogleDirectoryApiGateway implements DirectoryApiGateway
@@ -28,11 +30,24 @@ class GoogleDirectoryApiGateway implements DirectoryApiGateway
                 return null;
             }
 
-            throw DirectoryApiException::requestFailed($this->googleErrorDetail($e), $e);
+            $this->logSanitizedGoogleError('directory.getUserById', $e);
+
+            throw DirectoryApiException::confirmedFailure(
+                'Google Directory could not be reached. The request was denied.',
+                $e,
+            );
         } catch (DirectoryApiException $e) {
             throw $e;
         } catch (Throwable $e) {
-            throw DirectoryApiException::requestFailed(previous: $e);
+            if ($this->isUncertainOutcome($e)) {
+                $this->logSanitizedGoogleError('directory.getUserById.unknown', $e);
+
+                throw DirectoryApiException::outcomeUnknown(previous: $e);
+            }
+
+            $this->logSanitizedGoogleError('directory.getUserById', $e);
+
+            throw DirectoryApiException::confirmedFailure(previous: $e);
         }
 
         return $this->mapUser($user);
@@ -52,11 +67,24 @@ class GoogleDirectoryApiGateway implements DirectoryApiGateway
         try {
             $user = $directory->users->update($directoryUserId, $payload);
         } catch (GoogleServiceException $e) {
-            throw DirectoryApiException::requestFailed($this->googleErrorDetail($e), $e);
+            $this->logSanitizedGoogleError('directory.updatePassword', $e);
+
+            throw DirectoryApiException::confirmedFailure(
+                'Google Directory could not be reached. The request was denied.',
+                $e,
+            );
         } catch (DirectoryApiException $e) {
             throw $e;
         } catch (Throwable $e) {
-            throw DirectoryApiException::requestFailed(previous: $e);
+            if ($this->isUncertainOutcome($e)) {
+                $this->logSanitizedGoogleError('directory.updatePassword.unknown', $e);
+
+                throw DirectoryApiException::outcomeUnknown(previous: $e);
+            }
+
+            $this->logSanitizedGoogleError('directory.updatePassword', $e);
+
+            throw DirectoryApiException::confirmedFailure(previous: $e);
         }
 
         return $this->mapUser($user);
@@ -86,10 +114,44 @@ class GoogleDirectoryApiGateway implements DirectoryApiGateway
         ];
     }
 
-    private function googleErrorDetail(GoogleServiceException $e): string
+    private function isUncertainOutcome(Throwable $e): bool
     {
-        $message = trim($e->getMessage());
+        if ($e instanceof ConnectException) {
+            return true;
+        }
 
-        return $message !== '' ? "({$message})" : '';
+        $haystack = strtolower($e->getMessage().' '.($e->getPrevious()?->getMessage() ?? ''));
+
+        foreach ([
+            'timed out',
+            'timeout',
+            'connection reset',
+            'connection aborted',
+            'curl error 28',
+            'operation timed out',
+            'network is unreachable',
+            'failed to connect',
+            'connection refused',
+        ] as $needle) {
+            if (str_contains($haystack, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function logSanitizedGoogleError(string $context, Throwable $e): void
+    {
+        $message = $e->getMessage();
+        $message = preg_replace('/Bearer\s+\S+/i', 'Bearer [redacted]', $message) ?? $message;
+        $message = preg_replace('/password["\s:=]+\S+/i', 'password=[redacted]', $message) ?? $message;
+
+        Log::warning('Google Directory API error', [
+            'context' => $context,
+            'exception_class' => $e::class,
+            'message' => mb_substr($message, 0, 500),
+            'code' => $e->getCode(),
+        ]);
     }
 }

@@ -325,8 +325,11 @@ Scopes the app requests (teachers approve these on first sign-in):
 - `openid`, `profile`, `email`
 - `https://www.googleapis.com/auth/classroom.courses.readonly`
 - `https://www.googleapis.com/auth/classroom.rosters.readonly`
+- `https://www.googleapis.com/auth/classroom.profile.emails`
 
-Only accounts on `STAFF_DOMAIN` are allowed to sign in.
+Only accounts on `STAFF_DOMAIN` are allowed to sign in. Signing in does **not**
+grant Teacher or password-reset access — a System Administrator must assign a
+role and enable **Can reset student passwords** in Users.
 
 ### Step 11 — Service account + domain-wide delegation (password reset)
 

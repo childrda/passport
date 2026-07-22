@@ -10,6 +10,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -61,6 +62,10 @@ class UserResource extends Resource
                     ->multiple()
                     ->preload()
                     ->required(),
+                Toggle::make('reset_access_enabled')
+                    ->label('Can reset student passwords')
+                    ->helperText('Required in addition to the Teacher or System Administrator role. Signing in with Google does not enable this automatically.')
+                    ->default(false),
             ]);
     }
 
@@ -74,6 +79,11 @@ class UserResource extends Resource
                     ->label('Roles')
                     ->badge()
                     ->separator(','),
+                TextColumn::make('reset_access_enabled')
+                    ->label('Reset access')
+                    ->badge()
+                    ->formatStateUsing(fn (bool $state): string => $state ? 'Enabled' : 'Off')
+                    ->color(fn (bool $state): string => $state ? 'success' : 'gray'),
                 TextColumn::make('google_id')
                     ->label('Google linked')
                     ->formatStateUsing(fn (?string $state): string => filled($state) ? 'Yes' : 'No')

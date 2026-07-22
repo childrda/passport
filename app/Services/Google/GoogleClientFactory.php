@@ -26,13 +26,7 @@ class GoogleClientFactory
         $client->setClientSecret((string) config('reset.google.oauth.client_secret'));
         $client->setRedirectUri((string) config('reset.google.oauth.redirect_uri'));
         $client->setAccessType('offline');
-        $client->setScopes([
-            'openid',
-            'profile',
-            'email',
-            'https://www.googleapis.com/auth/classroom.courses.readonly',
-            'https://www.googleapis.com/auth/classroom.rosters.readonly',
-        ]);
+        $client->setScopes(config('reset.google.scopes', []));
 
         $token = [
             'access_token' => $user->google_access_token,

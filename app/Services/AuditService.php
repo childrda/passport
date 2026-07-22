@@ -2,10 +2,12 @@
 
 namespace App\Services;
 
+use App\Enums\AuditFailureCode;
 use App\Enums\AuditResult;
 use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Support\Facades\Request;
+use Illuminate\Support\Str;
 
 class AuditService
 {
@@ -22,11 +24,19 @@ class AuditService
      *     studentName?: ?string,
      *     result: AuditResult,
      *     failureReason?: ?string,
+     *     failureCode?: AuditFailureCode|string|null,
+     *     correlationId?: ?string,
      *     ipAddress?: ?string,
+     *     userAgent?: ?string,
      * }  $data
      */
     public function recordResetAttempt(array $data): AuditLog
     {
+        $failureCode = $data['failureCode'] ?? null;
+        if ($failureCode instanceof AuditFailureCode) {
+            $failureCode = $failureCode->value;
+        }
+
         return AuditLog::query()->create([
             'teacher_user_id' => $data['teacher']->id,
             'teacher_email' => $data['teacher']->email,
@@ -39,7 +49,11 @@ class AuditService
             'course_name' => $data['courseName'] ?? null,
             'result' => $data['result']->value,
             'failure_reason' => $data['failureReason'] ?? null,
+            'failure_code' => $failureCode,
             'ip_address' => $data['ipAddress'] ?? Request::ip(),
+            'occurred_at_utc' => now('UTC'),
+            'user_agent' => $data['userAgent'] ?? Request::userAgent(),
+            'correlation_id' => $data['correlationId'] ?? (string) Str::uuid(),
         ]);
     }
 }

@@ -6,6 +6,7 @@ use App\Contracts\ClassroomService;
 use App\Contracts\ClassroomApiGateway;
 use App\Contracts\DirectoryApiGateway;
 use App\Contracts\DirectoryService;
+use App\Models\User;
 use App\Services\Google\GoogleClassroomApiGateway;
 use App\Services\Google\GoogleDirectoryApiGateway;
 use App\Services\GoogleClassroomService;
@@ -14,6 +15,7 @@ use App\Services\MockGoogleClassroomService;
 use App\Services\MockGoogleDirectoryService;
 use App\Services\TemporaryPasswordGenerator;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use InvalidArgumentException;
 
@@ -62,6 +64,10 @@ class AppServiceProvider extends ServiceProvider
             'client_secret' => config('reset.google.oauth.client_secret'),
             'redirect' => config('reset.google.oauth.redirect_uri'),
         ]);
+
+        Gate::define('reset-student-password', function (User $user): bool {
+            return $user->canResetStudentPasswords();
+        });
 
         TemporaryPasswordGenerator::validateConfiguration();
     }

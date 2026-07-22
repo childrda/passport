@@ -15,6 +15,7 @@ use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Panel;
 use Filament\Schemas\Components\EmbeddedTable;
+use Filament\Schemas\Components\View as SchemaView;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
@@ -141,6 +142,7 @@ class ClassRoster extends Page implements HasTable
     {
         return $schema
             ->components([
+                SchemaView::make('filament.pages.partials.temporary-password-host'),
                 EmbeddedTable::make(),
             ]);
     }
@@ -195,6 +197,7 @@ class ClassRoster extends Page implements HasTable
                     ->label('Reset Password')
                     ->icon(Heroicon::OutlinedKey)
                     ->color('danger')
+                    ->visible(fn (): bool => auth()->user()?->canResetStudentPasswords() ?? false)
                     ->requiresConfirmation()
                     ->modalHeading(fn (array $record): string => 'Reset password for '.$record['full_name'].'?')
                     ->modalDescription(
@@ -202,37 +205,19 @@ class ClassRoster extends Page implements HasTable
                         'The student must change it at their next Google sign-in.'
                     )
                     ->modalSubmitActionLabel('Reset Password')
-                    ->action(function (array $record, Action $action): void {
+                    ->modalSubmitAction(fn (Action $action): Action => $action->extraAttributes([
+                        'wire:loading.attr' => 'disabled',
+                        'x-data' => '{ submitted: false }',
+                        'x-bind:disabled' => 'submitted',
+                        'x-on:click' => 'submitted = true',
+                    ]))
+                    ->action(function (array $record): void {
                         $this->confirmResetPassword($record);
-                        // Keep the one-time password modal mounted after this action finishes.
-                        $action->halt();
                     }),
             ])
             ->paginated(false)
             ->emptyStateHeading('No students enrolled')
             ->emptyStateDescription('This class does not currently have any students.');
-    }
-
-    /**
-     * One-time password display. Mounted via replaceMountedAction with arguments only;
-     * dismissing or refreshing clears them. Not registered as a visible header button.
-     */
-    public function showTemporaryPasswordAction(): Action
-    {
-        return Action::make('showTemporaryPassword')
-            ->modalHeading('Temporary password')
-            ->modalSubmitAction(false)
-            ->modalCancelActionLabel('Done')
-            ->closeModalByClickingAway(false)
-            ->modalContent(function (Action $action) {
-                $arguments = $action->getArguments();
-
-                return view('filament.modals.temporary-password', [
-                    'password' => $arguments['temporaryPassword'] ?? '',
-                    'studentName' => $arguments['studentName'] ?? '',
-                    'studentEmail' => $arguments['studentEmail'] ?? '',
-                ]);
-            });
     }
 
     /**
@@ -250,11 +235,16 @@ class ClassRoster extends Page implements HasTable
                 $record['google_user_id'],
             );
         } catch (PasswordResetException $e) {
-            Notification::make()
-                ->title('Unable to reset password')
+            $notification = Notification::make()
+                ->title($e->allowsRetry ? 'Unable to reset password' : 'Reset not confirmed')
                 ->body($e->getMessage())
-                ->danger()
-                ->send();
+                ->danger();
+
+            if (! $e->allowsRetry) {
+                $notification->persistent();
+            }
+
+            $notification->send();
 
             return;
         } catch (\Throwable $e) {
@@ -269,14 +259,17 @@ class ClassRoster extends Page implements HasTable
             return;
         }
 
-        // Password is passed only into ephemeral mounted action arguments for this response.
-        $this->replaceMountedAction('showTemporaryPassword', [
-            'temporaryPassword' => $result->temporaryPassword,
+        // Password is sent only in this response's JS effect — never Livewire/component state.
+        $payload = json_encode([
+            'password' => $result->temporaryPassword,
             'studentName' => $result->studentName,
             'studentEmail' => $result->studentEmail,
-        ]);
+        ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT | JSON_THROW_ON_ERROR);
 
-        // Ensure we never write the password to application logs.
+        $this->js(
+            'window.dispatchEvent(new CustomEvent("passport-temp-password", { detail: '.$payload.' }))'
+        );
+
         Log::info('Student password reset completed', [
             'teacher_id' => $user->id,
             'course_id' => $this->courseId,

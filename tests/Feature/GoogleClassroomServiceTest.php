@@ -38,6 +38,7 @@ class GoogleClassroomServiceTest extends TestCase
             'google_id' => 'teacher-google-1',
             'google_access_token' => 'access-token',
             'google_refresh_token' => 'refresh-token',
+            'reset_access_enabled' => true,
         ]);
         $this->teacher->assignRole(RoleName::Teacher);
     }

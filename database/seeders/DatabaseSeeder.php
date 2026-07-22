@@ -21,12 +21,14 @@ class DatabaseSeeder extends Seeder
         $admin = User::factory()->create([
             'name' => 'Local Admin',
             'email' => 'admin@'.config('reset.staff_domain'),
+            'reset_access_enabled' => true,
         ]);
         $admin->assignRole(RoleName::SystemAdministrator);
 
         $teacher = User::factory()->create([
             'name' => 'Local Teacher',
             'email' => 'teacher@'.config('reset.staff_domain'),
+            'reset_access_enabled' => true,
         ]);
         $teacher->assignRole(RoleName::Teacher);
 

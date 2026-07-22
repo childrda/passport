@@ -53,7 +53,7 @@ class GoogleAuthTest extends TestCase
         $this->assertFalse($service->emailBelongsToStaffDomain('outsider@gmail.com'));
     }
 
-    public function test_sync_creates_teacher_for_new_staff_user(): void
+    public function test_sync_creates_user_without_auto_assigning_teacher(): void
     {
         $googleUser = $this->makeGoogleUser(
             id: 'google-123',
@@ -63,7 +63,9 @@ class GoogleAuthTest extends TestCase
 
         $user = app(GoogleAuthService::class)->syncUserFromGoogle($googleUser);
 
-        $this->assertTrue($user->isTeacher());
+        $this->assertFalse($user->isTeacher());
+        $this->assertFalse($user->roles()->exists());
+        $this->assertFalse($user->reset_access_enabled);
         $this->assertSame('google-123', $user->google_id);
         $this->assertSame('new.teacher@lcps.k12.va.us', $user->email);
         $this->assertNotNull($user->google_access_token);
@@ -103,8 +105,35 @@ class GoogleAuthTest extends TestCase
         $this->assertSame('google-admin', $user->google_id);
     }
 
-    public function test_callback_logs_in_staff_user_and_redirects_to_panel(): void
+    public function test_callback_rejects_unprovisioned_staff_user(): void
     {
+        $googleUser = $this->makeGoogleUser(
+            id: 'google-callback',
+            email: 'callback.teacher@lcps.k12.va.us',
+            name: 'Callback Teacher',
+        );
+
+        $this->mockSocialiteUser($googleUser);
+
+        $this->get('/auth/google/callback')
+            ->assertRedirect('/admin/login');
+
+        $this->assertGuest();
+        $this->assertDatabaseHas('users', [
+            'email' => 'callback.teacher@lcps.k12.va.us',
+            'google_id' => 'google-callback',
+        ]);
+        $this->assertFalse(User::where('email', 'callback.teacher@lcps.k12.va.us')->first()->roles()->exists());
+    }
+
+    public function test_callback_logs_in_provisioned_staff_user(): void
+    {
+        $existing = User::factory()->create([
+            'email' => 'callback.teacher@lcps.k12.va.us',
+            'reset_access_enabled' => true,
+        ]);
+        $existing->assignRole(RoleName::Teacher);
+
         $googleUser = $this->makeGoogleUser(
             id: 'google-callback',
             email: 'callback.teacher@lcps.k12.va.us',

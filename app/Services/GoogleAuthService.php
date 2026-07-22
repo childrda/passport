@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\RoleName;
 use App\Models\User;
+use DomainException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Contracts\User as SocialiteUser;
@@ -11,19 +12,17 @@ use Laravel\Socialite\Contracts\User as SocialiteUser;
 class GoogleAuthService
 {
     /**
-     * OAuth scopes needed for sign-in and (later) Classroom roster access.
+     * OAuth scopes needed for sign-in and Classroom roster access.
+     * Canonical list lives in config('reset.google.scopes').
      *
      * @return list<string>
      */
     public function scopes(): array
     {
-        return [
-            'openid',
-            'profile',
-            'email',
-            'https://www.googleapis.com/auth/classroom.courses.readonly',
-            'https://www.googleapis.com/auth/classroom.rosters.readonly',
-        ];
+        /** @var list<string> $scopes */
+        $scopes = config('reset.google.scopes', []);
+
+        return array_values($scopes);
     }
 
     /**
@@ -31,11 +30,12 @@ class GoogleAuthService
      *
      * @return array<string, string>
      */
-    public function withParameters(): array
+    public function withParameters(bool $forceConsent = false): array
     {
         return [
             'access_type' => 'offline',
-            'prompt' => 'select_account consent',
+            // Prefer select_account only; request consent deliberately when reconnecting.
+            'prompt' => $forceConsent ? 'select_account consent' : 'select_account',
             'hd' => $this->staffDomain(),
         ];
     }
@@ -53,24 +53,31 @@ class GoogleAuthService
     }
 
     /**
-     * Create or update the local user from a Google OAuth profile and assign Teacher if needed.
+     * Create or update the local user from a Google OAuth profile.
+     * Does not auto-assign Teacher — roles and reset access are provisioned by admins.
      */
     public function syncUserFromGoogle(SocialiteUser $googleUser): User
     {
         $email = (string) $googleUser->getEmail();
+        $googleId = (string) $googleUser->getId();
 
         if ($email === '' || ! $this->emailBelongsToStaffDomain($email)) {
-            throw new \DomainException(
+            throw new DomainException(
                 'Only '.config('reset.staff_domain').' Google accounts may sign in.'
             );
         }
 
-        $user = User::query()
-            ->where(function ($query) use ($googleUser, $email): void {
-                $query->where('google_id', $googleUser->getId())
-                    ->orWhere('email', $email);
-            })
-            ->first();
+        $user = User::query()->where('google_id', $googleId)->first();
+
+        if ($user === null) {
+            $user = User::query()->where('email', $email)->first();
+
+            if ($user !== null && filled($user->google_id) && $user->google_id !== $googleId) {
+                throw new DomainException(
+                    'This email is already linked to a different Google account. Contact Technology Support.'
+                );
+            }
+        }
 
         $tokenExpiresAt = null;
         if (isset($googleUser->expiresIn) && is_numeric($googleUser->expiresIn)) {
@@ -78,7 +85,7 @@ class GoogleAuthService
         }
 
         $attributes = [
-            'google_id' => $googleUser->getId(),
+            'google_id' => $googleId,
             'name' => $googleUser->getName() ?: $email,
             'email' => $email,
             'avatar' => $googleUser->getAvatar(),
@@ -96,10 +103,6 @@ class GoogleAuthService
         } else {
             $user->fill($attributes);
             $user->save();
-        }
-
-        if (! $user->roles()->exists()) {
-            $user->assignRole(RoleName::Teacher);
         }
 
         return $user->fresh(['roles']);

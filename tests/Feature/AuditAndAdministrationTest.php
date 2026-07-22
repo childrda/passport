@@ -40,10 +40,10 @@ class AuditAndAdministrationTest extends TestCase
             'reset.temp_password.alphabet' => 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789',
         ]);
 
-        $this->teacher = User::factory()->create(['email' => 'teacher@lcps.k12.va.us']);
+        $this->teacher = User::factory()->create(['email' => 'teacher@lcps.k12.va.us', 'reset_access_enabled' => true]);
         $this->teacher->assignRole(RoleName::Teacher);
 
-        $this->admin = User::factory()->create(['email' => 'admin@lcps.k12.va.us']);
+        $this->admin = User::factory()->create(['email' => 'admin@lcps.k12.va.us', 'reset_access_enabled' => true]);
         $this->admin->assignRole(RoleName::SystemAdministrator);
 
         $this->auditor = User::factory()->create(['email' => 'auditor@lcps.k12.va.us']);

@@ -157,13 +157,20 @@ seed), then manage further users in Filament → **Users**. Do not leave default
 
 ## 5. Security notes
 
-- Temporary passwords are shown once in a non-persistent modal and must never appear
-  in DB, session, cache, logs, flash, queues, or Livewire properties.
-- Audit logs record attempts without passwords and are read-only in the UI.
+- Temporary passwords are shown once via a one-shot browser event (not Livewire
+  mounted-action arguments) and must never appear in DB, session, cache, logs,
+  flash, queues, or Livewire properties.
+- Audit logs are append-only at the Eloquent model layer (updates/deletes throw)
+  and denied by policy. Production should also enforce append-only with database
+  grants/triggers (app DB user: INSERT + SELECT only on `audit_logs`).
+- Password reset uses `Cache::lock` keyed by Directory user ID. Production must
+  use a shared lock-capable cache (Redis), not `array` or a single-node `file`
+  driver behind multiple app servers.
 - OAuth secrets, service-account JSON, and domain settings are **not** editable in Filament.
 - Keep `APP_DEBUG=false` in production.
 - Prefer HTTPS only; Google OAuth requires a secure redirect URI in production.
-
+- Staff Google sign-in does **not** auto-grant Teacher or reset access — provision
+  roles and `reset_access_enabled` in Filament → Users.
 ## 6. Verification after deploy
 
 1. Open `/admin/login` → **Sign in with Google** with a staff account.

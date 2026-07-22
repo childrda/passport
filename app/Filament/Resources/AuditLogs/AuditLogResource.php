@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\AuditLogs;
 
 use App\Enums\AuditResult;
+use App\Enums\AuditFailureCode;
 use App\Enums\RoleName;
 use App\Filament\Resources\AuditLogs\Pages\ManageAuditLogs;
 use App\Models\AuditLog;
@@ -74,10 +75,13 @@ class AuditLogResource extends Resource
     {
         return $schema
             ->components([
-                TextEntry::make('created_at')->label('Date / time')->dateTime(),
+                TextEntry::make('occurred_at_utc')->label('Occurred (UTC)')->dateTime()->placeholder('—'),
+                TextEntry::make('created_at')->label('Recorded at')->dateTime(),
                 TextEntry::make('result')->badge()
                     ->color(fn (AuditResult $state): string => $state === AuditResult::Success ? 'success' : 'danger')
                     ->formatStateUsing(fn (AuditResult $state): string => $state->label()),
+                TextEntry::make('failure_code')->label('Failure code')->placeholder('—'),
+                TextEntry::make('correlation_id')->label('Correlation ID')->placeholder('—'),
                 TextEntry::make('teacher_name')->label('Teacher'),
                 TextEntry::make('teacher_email')->label('Teacher email'),
                 TextEntry::make('student_name')->label('Student')->placeholder('—'),
@@ -86,8 +90,9 @@ class AuditLogResource extends Resource
                 TextEntry::make('student_directory_user_id')->label('Directory user ID')->placeholder('—'),
                 TextEntry::make('course_name')->label('Course')->placeholder('—'),
                 TextEntry::make('course_id')->label('Course ID'),
-                TextEntry::make('failure_reason')->label('Failure reason')->placeholder('—')->columnSpanFull(),
+                TextEntry::make('failure_reason')->label('Failure message')->placeholder('—')->columnSpanFull(),
                 TextEntry::make('ip_address')->label('IP address')->placeholder('—'),
+                TextEntry::make('user_agent')->label('User agent')->placeholder('—')->columnSpanFull(),
             ]);
     }
 
@@ -100,10 +105,18 @@ class AuditLogResource extends Resource
                     ->label('When')
                     ->dateTime()
                     ->sortable(),
+                TextColumn::make('occurred_at_utc')
+                    ->label('UTC')
+                    ->dateTime()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('result')
                     ->badge()
                     ->color(fn (AuditResult $state): string => $state === AuditResult::Success ? 'success' : 'danger')
                     ->formatStateUsing(fn (AuditResult $state): string => $state->label()),
+                TextColumn::make('failure_code')
+                    ->label('Code')
+                    ->placeholder('—')
+                    ->toggleable(),
                 TextColumn::make('teacher_email')
                     ->label('Teacher')
                     ->searchable()
@@ -117,10 +130,14 @@ class AuditLogResource extends Resource
                     ->placeholder(fn (AuditLog $record): string => $record->course_id)
                     ->wrap(),
                 TextColumn::make('failure_reason')
-                    ->label('Failure reason')
+                    ->label('Failure message')
                     ->limit(40)
                     ->placeholder('—')
                     ->toggleable(),
+                TextColumn::make('correlation_id')
+                    ->label('Correlation')
+                    ->limit(8)
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('ip_address')
                     ->label('IP')
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -131,6 +148,11 @@ class AuditLogResource extends Resource
                         AuditResult::Success->value => AuditResult::Success->label(),
                         AuditResult::Failure->value => AuditResult::Failure->label(),
                     ]),
+                SelectFilter::make('failure_code')
+                    ->label('Failure code')
+                    ->options(collect(AuditFailureCode::cases())->mapWithKeys(
+                        fn (AuditFailureCode $code): array => [$code->value => $code->label()]
+                    )->all()),
             ])
             ->recordActions([
                 ViewAction::make(),

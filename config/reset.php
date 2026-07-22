@@ -30,6 +30,19 @@ return [
         ],
 
         /*
+        | Single source of truth for OAuth + Google API client scopes.
+        | classroom.profile.emails is required for UserProfile.emailAddress.
+        */
+        'scopes' => [
+            'openid',
+            'profile',
+            'email',
+            'https://www.googleapis.com/auth/classroom.courses.readonly',
+            'https://www.googleapis.com/auth/classroom.rosters.readonly',
+            'https://www.googleapis.com/auth/classroom.profile.emails',
+        ],
+
+        /*
         | Path or reference to the service-account JSON key (kept outside the repo).
         */
         'service_account_credentials' => env('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS'),

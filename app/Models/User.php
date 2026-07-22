@@ -30,6 +30,7 @@ class User extends Authenticatable implements FilamentUser
         'google_access_token',
         'google_refresh_token',
         'google_token_expires_at',
+        'reset_access_enabled',
     ];
 
     /**
@@ -57,6 +58,7 @@ class User extends Authenticatable implements FilamentUser
             'google_access_token' => 'encrypted',
             'google_refresh_token' => 'encrypted',
             'google_token_expires_at' => 'datetime',
+            'reset_access_enabled' => 'boolean',
         ];
     }
 
@@ -104,5 +106,18 @@ class User extends Authenticatable implements FilamentUser
     public function isAuditor(): bool
     {
         return $this->hasRole(RoleName::Auditor);
+    }
+
+    /**
+     * Server-side enablement gate for student password resets.
+     */
+    public function canResetStudentPasswords(): bool
+    {
+        if (! $this->reset_access_enabled) {
+            return false;
+        }
+
+        return $this->hasRole(RoleName::Teacher)
+            || $this->hasRole(RoleName::SystemAdministrator);
     }
 }

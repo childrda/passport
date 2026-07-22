@@ -40,6 +40,7 @@ class GoogleDirectoryServiceTest extends TestCase
 
         $this->teacher = User::factory()->create([
             'email' => 'teacher@lcps.k12.va.us',
+            'reset_access_enabled' => true,
         ]);
         $this->teacher->assignRole(RoleName::Teacher);
     }

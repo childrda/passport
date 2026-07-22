@@ -36,12 +36,14 @@ class TeacherClassroomUiTest extends TestCase
         $this->teacher = User::factory()->create([
             'email' => 'teacher@lcps.k12.va.us',
             'name' => 'Local Teacher',
+            'reset_access_enabled' => true,
         ]);
         $this->teacher->assignRole(RoleName::Teacher);
 
         $this->otherTeacher = User::factory()->create([
             'email' => 'other.teacher@lcps.k12.va.us',
             'name' => 'Other Teacher',
+            'reset_access_enabled' => true,
         ]);
         $this->otherTeacher->assignRole(RoleName::Teacher);
 
@@ -109,7 +111,12 @@ class TeacherClassroomUiTest extends TestCase
             ->test(ClassRoster::class, ['courseId' => 'course-algebra-101'])
             ->mountTableAction('resetPassword', 'student-google-1001')
             ->callMountedTableAction()
-            ->assertActionMounted('showTemporaryPassword');
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('audit_logs', [
+            'student_google_user_id' => 'student-google-1001',
+            'result' => 'success',
+        ]);
     }
 
     public function test_reset_password_action_rejects_unenrolled_student(): void

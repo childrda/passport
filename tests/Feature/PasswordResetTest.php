@@ -40,6 +40,7 @@ class PasswordResetTest extends TestCase
 
         $this->teacher = User::factory()->create([
             'email' => 'teacher@lcps.k12.va.us',
+            'reset_access_enabled' => true,
         ]);
         $this->teacher->assignRole(RoleName::Teacher);
     }
@@ -114,56 +115,96 @@ class PasswordResetTest extends TestCase
     {
         Log::spy();
 
-        $component = Livewire::actingAs($this->teacher)
+        $knownPassword = 'LogCheck99';
+
+        $service = Mockery::mock(StudentPasswordResetService::class);
+        $service->shouldReceive('reset')
+            ->once()
+            ->andReturn(new \App\DataTransferObjects\PasswordResetResult(
+                temporaryPassword: $knownPassword,
+                studentName: 'Alex Rivera',
+                studentEmail: 'alex.rivera@k12louisa.org',
+                directoryUserId: 'dir-1001',
+                changePasswordAtNextLogin: true,
+            ));
+        $this->app->instance(StudentPasswordResetService::class, $service);
+
+        Livewire::actingAs($this->teacher)
             ->test(ClassRoster::class, ['courseId' => 'course-algebra-101'])
             ->mountTableAction('resetPassword', 'student-google-1001')
-            ->callMountedTableAction()
-            ->assertActionMounted('showTemporaryPassword');
-
-        $password = $component->instance()->mountedActions[0]['arguments']['temporaryPassword'] ?? null;
-        $this->assertNotEmpty($password);
+            ->callMountedTableAction();
 
         Log::shouldHaveReceived('info')
-            ->withArgs(function (string $message, array $context) use ($password): bool {
+            ->withArgs(function (string $message, array $context) use ($knownPassword): bool {
                 $payload = json_encode([$message, $context]);
 
-                return ! str_contains((string) $payload, $password);
+                return ! str_contains((string) $payload, $knownPassword);
             })
             ->atLeast()
             ->once();
     }
 
-    public function test_temporary_password_is_not_a_livewire_property_and_clears_on_dismiss(): void
+    public function test_temporary_password_is_not_persisted_in_livewire_state(): void
     {
+        $knownPassword = 'StateChk88';
+
+        $service = Mockery::mock(StudentPasswordResetService::class);
+        $service->shouldReceive('reset')
+            ->once()
+            ->andReturn(new \App\DataTransferObjects\PasswordResetResult(
+                temporaryPassword: $knownPassword,
+                studentName: 'Alex Rivera',
+                studentEmail: 'alex.rivera@k12louisa.org',
+                directoryUserId: 'dir-1001',
+                changePasswordAtNextLogin: true,
+            ));
+        $this->app->instance(StudentPasswordResetService::class, $service);
+
         $component = Livewire::actingAs($this->teacher)
             ->test(ClassRoster::class, ['courseId' => 'course-algebra-101'])
             ->mountTableAction('resetPassword', 'student-google-1001')
-            ->callMountedTableAction()
-            ->assertActionMounted('showTemporaryPassword');
+            ->callMountedTableAction();
 
         $this->assertFalse(property_exists($component->instance(), 'temporaryPassword'));
-
-        $password = $component->instance()->mountedActions[0]['arguments']['temporaryPassword'] ?? null;
-        $this->assertNotEmpty($password);
-        $component->assertMountedActionModalSee($password);
-
-        $component
-            ->unmountAction()
-            ->assertActionNotMounted();
-
-        $this->assertSame([], $component->instance()->mountedActions);
+        $this->assertStringNotContainsString(
+            $knownPassword,
+            (string) json_encode($component->instance()->mountedActions ?? [])
+        );
         $this->assertNull(session('temporaryPassword') ?? session('temp_password') ?? null);
+
+        $component->call('$refresh');
+        $this->assertStringNotContainsString(
+            $knownPassword,
+            (string) json_encode([
+                'mountedActions' => $component->instance()->mountedActions ?? [],
+                'data' => $component->getData(),
+            ])
+        );
     }
 
-    public function test_ui_reset_shows_one_time_password_modal(): void
+    public function test_ui_reset_dispatches_one_time_password_effect(): void
     {
-        Livewire::actingAs($this->teacher)
+        $knownPassword = 'UiPasswd01';
+
+        $service = Mockery::mock(StudentPasswordResetService::class);
+        $service->shouldReceive('reset')
+            ->once()
+            ->andReturn(new \App\DataTransferObjects\PasswordResetResult(
+                temporaryPassword: $knownPassword,
+                studentName: 'Alex Rivera',
+                studentEmail: 'alex.rivera@k12louisa.org',
+                directoryUserId: 'dir-1001',
+                changePasswordAtNextLogin: true,
+            ));
+        $this->app->instance(StudentPasswordResetService::class, $service);
+
+        $component = Livewire::actingAs($this->teacher)
             ->test(ClassRoster::class, ['courseId' => 'course-algebra-101'])
             ->mountTableAction('resetPassword', 'student-google-1001')
-            ->callMountedTableAction()
-            ->assertActionMounted('showTemporaryPassword')
-            ->assertMountedActionModalSee('Temporary password for')
-            ->assertMountedActionModalSee('Alex Rivera');
+            ->callMountedTableAction();
+
+        $this->assertStringContainsString($knownPassword, (string) json_encode($component->effects));
+        $this->assertStringContainsString('passport-temp-password', (string) json_encode($component->effects));
     }
 
     public function test_mock_directory_does_not_retain_password(): void

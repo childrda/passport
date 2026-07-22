@@ -47,6 +47,7 @@ class RequirementsChecklistTest extends TestCase
         $this->teacher = User::factory()->create([
             'email' => 'teacher@lcps.k12.va.us',
             'google_id' => 'teacher-google-1',
+            'reset_access_enabled' => true,
         ]);
         $this->teacher->assignRole(RoleName::Teacher);
     }

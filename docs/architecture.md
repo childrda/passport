@@ -138,7 +138,16 @@ All deployment values come from `.env` via `config('reset.*')`. See `.env.exampl
 - Testing map: `docs/testing.md`
 - Deployment / Google Workspace runbook: `docs/deployment.md`
 
-## Local development (Phase 1–9)
+## Pass two remediation (`prompts/pass2.md`)
+
+- Canonical OAuth scopes in `config/reset.php` (includes `classroom.profile.emails`)
+- Temporary password via one-shot JS/Alpine — not Livewire mounted-action state
+- Directory confirmed failure vs outcome-unknown (do-not-retry)
+- Per-student `Cache::lock` + UI double-submit guard
+- Explicit `reset_access_enabled` gate (no auto-Teacher on Google sign-in)
+- Append-only audit logs (model + policy) with UTC, user agent, correlation ID, failure codes
+
+## Local development (Phase 1–9 + pass two)
 
 - Panel: `/admin`
 - Seeded users (password: `password`):
