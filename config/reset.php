@@ -43,14 +43,15 @@ return [
         ],
 
         /*
-        | Path or reference to the service-account JSON key (kept outside the repo).
+        | Staff-tenant OAuth (above) is for teacher sign-in + Classroom.
+        |
+        | Student-tenant Directory (below) is a separate Workspace. DWD and the
+        | impersonated admin must exist in the student tenant — never the staff tenant.
         */
-        'service_account_credentials' => env('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS'),
-
-        /*
-        | Workspace admin the service account impersonates via domain-wide delegation.
-        */
-        'impersonated_admin' => env('GOOGLE_IMPERSONATED_ADMIN'),
+        'directory' => [
+            'credentials' => env('GOOGLE_DIRECTORY_CREDENTIALS'),
+            'impersonated_admin' => env('GOOGLE_DIRECTORY_IMPERSONATED_ADMIN'),
+        ],
     ],
 
     /*

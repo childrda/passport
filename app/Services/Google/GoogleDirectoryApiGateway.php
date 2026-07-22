@@ -11,18 +11,21 @@ use GuzzleHttp\Exception\ConnectException;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
+/**
+ * Live Admin SDK Directory gateway for the **student** Workspace tenant.
+ */
 class GoogleDirectoryApiGateway implements DirectoryApiGateway
 {
     public function __construct(
-        private readonly GoogleServiceAccountClientFactory $clientFactory,
+        private readonly StudentDirectoryClientFactory $clientFactory,
     ) {}
 
-    public function getUserById(string $googleUserId): ?array
+    public function getUser(string $userKey): ?array
     {
         $directory = $this->directory();
 
         try {
-            $user = $directory->users->get($googleUserId, [
+            $user = $directory->users->get($userKey, [
                 'projection' => 'basic',
             ]);
         } catch (GoogleServiceException $e) {
@@ -30,7 +33,7 @@ class GoogleDirectoryApiGateway implements DirectoryApiGateway
                 return null;
             }
 
-            $this->logSanitizedGoogleError('directory.getUserById', $e);
+            $this->logSanitizedGoogleError('directory.getUser', $e);
 
             throw DirectoryApiException::confirmedFailure(
                 'Google Directory could not be reached. The request was denied.',
@@ -40,12 +43,12 @@ class GoogleDirectoryApiGateway implements DirectoryApiGateway
             throw $e;
         } catch (Throwable $e) {
             if ($this->isUncertainOutcome($e)) {
-                $this->logSanitizedGoogleError('directory.getUserById.unknown', $e);
+                $this->logSanitizedGoogleError('directory.getUser.unknown', $e);
 
                 throw DirectoryApiException::outcomeUnknown(previous: $e);
             }
 
-            $this->logSanitizedGoogleError('directory.getUserById', $e);
+            $this->logSanitizedGoogleError('directory.getUser', $e);
 
             throw DirectoryApiException::confirmedFailure(previous: $e);
         }

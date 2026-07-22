@@ -9,11 +9,15 @@ Students must authenticate to Google **directly**, not through a third-party IdP
 will not force a password change at the student’s actual login, and this approach
 must be reconsidered.
 
+**Two-tenant Google setup** (staff OAuth/Classroom vs student Directory DWD) is documented
+in [student-tenant.md](student-tenant.md). Complete that guide’s preflight checklist
+before setting `DIRECTORY_DRIVER=google`.
+
 ## Stack
 
 | Component | Requirement |
 |-----------|-------------|
-| PHP | 8.2+ with `intl`, `zip`, `openssl`, `pdo_mysql` |
+| PHP | 8.3+ with `intl`, `zip`, `openssl`, `pdo_mysql` |
 | Composer | 2.x |
 | Database | MySQL 8+ (utf8mb4) |
 | Web server | Apache or Nginx; HTTPS required for Google OAuth |
@@ -68,17 +72,30 @@ DB_USERNAME=...
 DB_PASSWORD=...
 ```
 
-### Domains
+### Domains (two Workspace tenants)
+
+Full operator guide: [student-tenant.md](student-tenant.md).
 
 ```
 STAFF_DOMAIN=lcps.k12.va.us
 STUDENT_DOMAIN=k12louisa.org
 ```
 
-- Only `STAFF_DOMAIN` accounts may sign in.
-- Only canonical primary emails on `STUDENT_DOMAIN` may be reset.
+LCPS runs **two separate Google Workspace tenants**:
 
-### Google OAuth (teacher sign-in + Classroom)
+| Tenant | Domain | Used for |
+|--------|--------|----------|
+| Staff | `STAFF_DOMAIN` | Teacher OAuth sign-in + Google Classroom |
+| Student | `STUDENT_DOMAIN` | Student accounts + Admin SDK Directory password reset |
+
+Students appear in staff-tenant Classroom courses as **external participants**.
+Directory discovery uses the live Classroom roster **email** (`@STUDENT_DOMAIN`)
+as the Admin SDK `userKey`, then resets by the immutable Directory user ID.
+
+- Only `STAFF_DOMAIN` accounts may sign in.
+- Only canonical **primary** emails on `STUDENT_DOMAIN` may be reset.
+
+### Google OAuth (staff tenant — teacher sign-in + Classroom)
 
 ```
 GOOGLE_OAUTH_CLIENT_ID=...
@@ -86,32 +103,43 @@ GOOGLE_OAUTH_CLIENT_SECRET=...
 GOOGLE_OAUTH_REDIRECT_URI="${APP_URL}/auth/google/callback"
 ```
 
-In Google Cloud Console (OAuth 2.0 Web client):
+In Google Cloud Console (OAuth 2.0 Web client) for the **staff** project:
 
 1. Authorized redirect URI must match `GOOGLE_OAUTH_REDIRECT_URI` exactly.
 2. OAuth consent / Workspace policies must allow the staff domain.
-3. Scopes requested by the app:
+3. Scopes requested by the app (see `config/reset.php`):
    - `openid`, `profile`, `email`
    - `https://www.googleapis.com/auth/classroom.courses.readonly`
    - `https://www.googleapis.com/auth/classroom.rosters.readonly`
+   - `https://www.googleapis.com/auth/classroom.profile.emails`
 
 Teachers must use **Sign in with Google** (not password login) so Classroom tokens exist.
 
-### Google service account (Directory password reset)
+**Before enabling live Directory:** confirm Classroom returns `emailAddress` for
+external (`@STUDENT_DOMAIN`) roster members with `classroom.profile.emails` granted.
+If those emails are blank, do not enable `DIRECTORY_DRIVER=google`.
+
+### Google service account (student tenant — Directory password reset)
+
+Domain-wide delegation is **per tenant**. The Directory client must be authorized in
+the **student** Workspace (`STUDENT_DOMAIN`), not the staff tenant.
 
 ```
-GOOGLE_SERVICE_ACCOUNT_CREDENTIALS=/secure/path/sa-password-reset.json
-GOOGLE_IMPERSONATED_ADMIN=workspace-admin@lcps.k12.va.us
+GOOGLE_DIRECTORY_CREDENTIALS=/secure/path/sa-student-directory.json
+GOOGLE_DIRECTORY_IMPERSONATED_ADMIN=admin@k12louisa.org
 ```
 
-1. Create a Google Cloud service account and download the JSON key.
-2. Store the key **outside the web root and outside git** (paths under
-   `storage/app/google/*.json` are gitignored as a convenience).
-3. In Google Workspace Admin → Security → API controls → Domain-wide delegation,
-   authorize the service account client ID with scope:
+(Legacy names `GOOGLE_SERVICE_ACCOUNT_CREDENTIALS` / `GOOGLE_IMPERSONATED_ADMIN` are
+removed — use the `GOOGLE_DIRECTORY_*` keys only.)
+
+1. Create a Google Cloud service account (often in a project tied to the student tenant)
+   and download the JSON key.
+2. Store the key **outside the web root and outside git**.
+3. In **student-tenant** Google Workspace Admin → Security → API controls →
+   Domain-wide delegation, authorize the service account client ID with scope:
    - `https://www.googleapis.com/auth/admin.directory.user`
-4. `GOOGLE_IMPERSONATED_ADMIN` must be a Workspace admin (or delegated admin)
-   that can reset student passwords.
+4. `GOOGLE_DIRECTORY_IMPERSONATED_ADMIN` must be an admin that **exists in the student
+   tenant** (on `STUDENT_DOMAIN`). An address on the staff domain is rejected at startup.
 
 ### Drivers
 
@@ -121,7 +149,7 @@ DIRECTORY_DRIVER=google
 ```
 
 Use `mock` only for local development without live Google APIs.
-
+Keep `DIRECTORY_DRIVER=mock` until the external roster-email prerequisite is verified.
 ### Temporary passwords
 
 ```
@@ -133,13 +161,13 @@ Invalid alphabet/length configuration is rejected at application boot.
 
 ## 3. Google Cloud / Workspace checklist
 
-- [ ] OAuth client created; redirect URI matches production `APP_URL`
-- [ ] Classroom readonly scopes approved for the OAuth client / Workspace
-- [ ] Service account created; JSON key stored securely
-- [ ] Domain-wide delegation enabled with `admin.directory.user`
-- [ ] Impersonated admin can manage student accounts on `STUDENT_DOMAIN`
+- [ ] Staff-tenant OAuth client created; redirect URI matches production `APP_URL`
+- [ ] Classroom scopes include `classroom.profile.emails`; external roster emails verified
+- [ ] Student-tenant service account created; JSON key stored securely
+- [ ] Student-tenant domain-wide delegation enabled with `admin.directory.user`
+- [ ] `GOOGLE_DIRECTORY_IMPERSONATED_ADMIN` is on `STUDENT_DOMAIN` (not staff)
 - [ ] Confirmed students sign in to Google directly (not via third-party IdP)
-- [ ] `CLASSROOM_DRIVER=google` and `DIRECTORY_DRIVER=google` in production
+- [ ] `CLASSROOM_DRIVER=google` and `DIRECTORY_DRIVER=google` only after email prerequisite
 
 ## 4. Roles and first users
 
@@ -198,6 +226,7 @@ php artisan test
 
 ## 8. Related docs
 
+- [Two-tenant Google setup](student-tenant.md)
 - [Architecture](architecture.md)
 - Build requirements: `prompts/main.md`
 - Environment template: `.env.example`

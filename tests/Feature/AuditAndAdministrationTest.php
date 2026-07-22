@@ -106,7 +106,7 @@ class AuditAndAdministrationTest extends TestCase
             ->assertSee('Integration status')
             ->assertSee('Environment-managed settings are read-only')
             ->assertDontSee('GOOGLE_OAUTH_CLIENT_SECRET')
-            ->assertDontSee('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS');
+            ->assertDontSee('GOOGLE_DIRECTORY_CREDENTIALS');
     }
 
     public function test_auditor_can_only_access_audit_logs(): void

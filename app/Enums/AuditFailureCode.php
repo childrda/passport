@@ -13,6 +13,7 @@ enum AuditFailureCode: string
     case DirectoryTimeoutUnknown = 'directory_timeout_unknown';
     case ResetInProgress = 'reset_in_progress';
     case ResetAccessDenied = 'reset_access_denied';
+    case StudentNotInDirectory = 'student_not_in_directory';
     case Unexpected = 'unexpected';
 
     public function label(): string
@@ -27,6 +28,7 @@ enum AuditFailureCode: string
             self::DirectoryTimeoutUnknown => 'Directory outcome unknown',
             self::ResetInProgress => 'Reset in progress',
             self::ResetAccessDenied => 'Reset access denied',
+            self::StudentNotInDirectory => 'Student not in directory',
             self::Unexpected => 'Unexpected error',
         };
     }

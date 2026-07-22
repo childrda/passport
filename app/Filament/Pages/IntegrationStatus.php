@@ -4,12 +4,13 @@ namespace App\Filament\Pages;
 
 use App\Enums\RoleName;
 use App\Models\User;
-use App\Services\Google\GoogleServiceAccountClientFactory;
+use App\Services\Google\StudentDirectoryClientFactory;
 use BackedEnum;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Str;
 use UnitEnum;
 
 class IntegrationStatus extends Page
@@ -53,18 +54,24 @@ class IntegrationStatus extends Page
             && filled(config('reset.google.oauth.client_secret'))
             && filled(config('reset.google.oauth.redirect_uri'));
 
-        $credentialsPath = app(GoogleServiceAccountClientFactory::class)->resolvedCredentialsPath();
+        $credentialsPath = app(StudentDirectoryClientFactory::class)->resolvedCredentialsPath();
         $credentialsReadable = filled($credentialsPath) && File::isReadable($credentialsPath);
-        $impersonatedAdmin = filled(config('reset.google.impersonated_admin'));
+
+        $impersonatedAdmin = trim((string) config('reset.google.directory.impersonated_admin'));
+        $studentDomain = Str::lower((string) config('reset.student_domain'));
+        $adminDomain = $impersonatedAdmin !== ''
+            ? Str::lower(Str::afterLast($impersonatedAdmin, '@'))
+            : '';
+        $adminOnStudentDomain = $impersonatedAdmin !== '' && $adminDomain === $studentDomain;
 
         return [
             [
-                'label' => 'Staff domain',
+                'label' => 'Staff domain (Classroom / OAuth)',
                 'value' => (string) config('reset.staff_domain'),
                 'ok' => filled(config('reset.staff_domain')),
             ],
             [
-                'label' => 'Student domain',
+                'label' => 'Student domain (Directory)',
                 'value' => (string) config('reset.student_domain'),
                 'ok' => filled(config('reset.student_domain')),
             ],
@@ -79,21 +86,27 @@ class IntegrationStatus extends Page
                 'ok' => in_array(config('reset.directory_driver'), ['mock', 'google'], true),
             ],
             [
-                'label' => 'Google OAuth',
+                'label' => 'Staff-tenant Google OAuth',
                 'value' => $oauthConfigured ? 'Configured' : 'Missing client ID/secret/redirect',
                 'ok' => $oauthConfigured,
             ],
             [
-                'label' => 'Service account credentials',
+                'label' => 'Student-tenant Directory credentials',
                 'value' => $credentialsReadable
                     ? 'Readable file configured'
                     : (filled($credentialsPath) ? 'Path set but not readable' : 'Not configured'),
-                'ok' => $credentialsReadable,
+                'ok' => $credentialsReadable || config('reset.directory_driver') === 'mock',
             ],
             [
-                'label' => 'Impersonated admin',
-                'value' => $impersonatedAdmin ? 'Configured' : 'Not configured',
-                'ok' => $impersonatedAdmin,
+                'label' => 'Student-tenant impersonated admin',
+                'value' => match (true) {
+                    $impersonatedAdmin === '' => 'Not configured',
+                    $adminOnStudentDomain => 'Configured on student domain',
+                    default => 'Configured but not on student domain',
+                },
+                'ok' => $adminOnStudentDomain || (
+                    $impersonatedAdmin === '' && config('reset.directory_driver') === 'mock'
+                ),
             ],
             [
                 'label' => 'Temp password length',

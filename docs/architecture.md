@@ -113,13 +113,14 @@ All deployment values come from `.env` via `config('reset.*')`. See `.env.exampl
   session flash, or log field)
 - `DIRECTORY_DRIVER=mock` for fixtures; `google` for live Admin SDK (Phase 7)
 
-## Live Google Directory (Phase 7)
+## Live Google Directory (Phase 7 / Pass 3)
 
-- `DIRECTORY_DRIVER=google` uses a service account JSON key + domain-wide delegation.
-- Impersonates `GOOGLE_IMPERSONATED_ADMIN`.
-- Resolves Classroom Google user ID via Directory `users.get` to the canonical account.
-- Resets password with `changePasswordAtNextLogin=true`; password is never stored.
-- Directory API failures deny the reset.
+- `DIRECTORY_DRIVER=google` uses a **student-tenant** service account JSON key + DWD
+  (`GOOGLE_DIRECTORY_CREDENTIALS` / `GOOGLE_DIRECTORY_IMPERSONATED_ADMIN`).
+- Impersonated admin must be on `STUDENT_DOMAIN` (startup-validated).
+- Discovers the Directory user from the live Classroom roster email, then resets by
+  immutable Directory user ID with `changePasswordAtNextLogin=true`.
+- Password is never stored. Directory API failures deny the reset.
 - Required scope: `https://www.googleapis.com/auth/admin.directory.user`
 
 ## Audit logging and administration (Phase 8)
@@ -147,7 +148,15 @@ All deployment values come from `.env` via `config('reset.*')`. See `.env.exampl
 - Explicit `reset_access_enabled` gate (no auto-Teacher on Google sign-in)
 - Append-only audit logs (model + policy) with UTC, user agent, correlation ID, failure codes
 
-## Local development (Phase 1–9 + pass two)
+## Pass three — two-tenant support (`prompts/pass3.md`)
+
+- Staff tenant: teacher OAuth + Classroom (`GoogleClientFactory`)
+- Student tenant: Directory DWD (`StudentDirectoryClientFactory`, `GOOGLE_DIRECTORY_*`)
+- Discovery by live roster email → reset by immutable Directory user ID
+- Audit records both roster email and canonical primary when they differ
+- Operator setup: [docs/student-tenant.md](student-tenant.md)
+
+## Local development (Phase 1–9 + pass two/three)
 
 - Panel: `/admin`
 - Seeded users (password: `password`):

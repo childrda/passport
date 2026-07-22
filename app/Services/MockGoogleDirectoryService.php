@@ -8,7 +8,7 @@ use App\Exceptions\PasswordResetException;
 use App\Services\Directory\MockDirectoryFixture;
 
 /**
- * Mock Directory driver for local development before live Admin SDK integration.
+ * Mock Directory driver for the student tenant (local development).
  *
  * Does not store temporary passwords.
  */
@@ -25,9 +25,9 @@ class MockGoogleDirectoryService implements DirectoryService
         private readonly MockDirectoryFixture $fixture,
     ) {}
 
-    public function findByClassroomUserId(string $classroomGoogleUserId): ?DirectoryUser
+    public function findByRosterEmail(string $email): ?DirectoryUser
     {
-        $user = $this->fixture->findByClassroomUserId($classroomGoogleUserId);
+        $user = $this->fixture->findByRosterEmail($email);
 
         if ($user === null) {
             return null;

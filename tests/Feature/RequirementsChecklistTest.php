@@ -96,6 +96,13 @@ class RequirementsChecklistTest extends TestCase
         $classroom->shouldReceive('teacherTeachesCourse')->andReturn(true);
         $classroom->shouldReceive('studentEnrolledInCourse')->andReturn(true);
         $classroom->shouldReceive('coursesForTeacher')->andReturn(collect());
+        $classroom->shouldReceive('studentsForCourse')->andReturn(collect([
+            new \App\DataTransferObjects\ClassroomStudent(
+                'student-google-staff',
+                'Staff Person',
+                'staff.person@lcps.k12.va.us',
+            ),
+        ]));
         $this->app->instance(ClassroomService::class, $classroom);
 
         $this->expectException(PasswordResetException::class);
@@ -212,10 +219,17 @@ class RequirementsChecklistTest extends TestCase
         $classroom->shouldReceive('teacherTeachesCourse')->andReturn(true);
         $classroom->shouldReceive('studentEnrolledInCourse')->andReturn(true);
         $classroom->shouldReceive('coursesForTeacher')->andReturn(collect());
+        $classroom->shouldReceive('studentsForCourse')->andReturn(collect([
+            new \App\DataTransferObjects\ClassroomStudent(
+                'student-google-1001',
+                'Alex Rivera',
+                'alex.rivera@k12louisa.org',
+            ),
+        ]));
         $this->app->instance(ClassroomService::class, $classroom);
 
         $gateway = Mockery::mock(DirectoryApiGateway::class);
-        $gateway->shouldReceive('getUserById')
+        $gateway->shouldReceive('getUser')
             ->andThrow(\App\Exceptions\DirectoryApiException::requestFailed('(timeout)'));
         $this->app->bind(DirectoryService::class, fn () => new GoogleDirectoryService($gateway));
 

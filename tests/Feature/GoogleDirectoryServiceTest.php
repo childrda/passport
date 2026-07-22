@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Contracts\ClassroomService;
 use App\Contracts\DirectoryApiGateway;
 use App\Contracts\DirectoryService;
+use App\DataTransferObjects\ClassroomStudent;
 use App\DataTransferObjects\DirectoryUser;
 use App\Enums\RoleName;
 use App\Exceptions\DirectoryApiException;
@@ -14,6 +15,7 @@ use App\Services\GoogleDirectoryService;
 use App\Services\StudentPasswordResetService;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Mockery;
 use Tests\TestCase;
 
@@ -45,12 +47,12 @@ class GoogleDirectoryServiceTest extends TestCase
         $this->teacher->assignRole(RoleName::Teacher);
     }
 
-    public function test_find_by_classroom_user_id_maps_canonical_user(): void
+    public function test_find_by_roster_email_maps_canonical_user(): void
     {
         $api = Mockery::mock(DirectoryApiGateway::class);
-        $api->shouldReceive('getUserById')
+        $api->shouldReceive('getUser')
             ->once()
-            ->with('student-google-1001')
+            ->with('alex.rivera@k12louisa.org')
             ->andReturn([
                 'id' => 'dir-1001',
                 'primaryEmail' => 'alex.rivera@k12louisa.org',
@@ -59,7 +61,7 @@ class GoogleDirectoryServiceTest extends TestCase
             ]);
 
         $service = new GoogleDirectoryService($api);
-        $user = $service->findByClassroomUserId('student-google-1001');
+        $user = $service->findByRosterEmail('alex.rivera@k12louisa.org');
 
         $this->assertInstanceOf(DirectoryUser::class, $user);
         $this->assertSame('dir-1001', $user->id);
@@ -69,11 +71,11 @@ class GoogleDirectoryServiceTest extends TestCase
     public function test_find_returns_null_when_directory_user_missing(): void
     {
         $api = Mockery::mock(DirectoryApiGateway::class);
-        $api->shouldReceive('getUserById')->once()->andReturn(null);
+        $api->shouldReceive('getUser')->once()->andReturn(null);
 
         $service = new GoogleDirectoryService($api);
 
-        $this->assertNull($service->findByClassroomUserId('missing-id'));
+        $this->assertNull($service->findByRosterEmail('missing@k12louisa.org'));
     }
 
     public function test_reset_password_sets_change_password_at_next_login(): void
@@ -102,13 +104,10 @@ class GoogleDirectoryServiceTest extends TestCase
 
     public function test_directory_api_failure_denies_password_reset(): void
     {
-        $classroom = Mockery::mock(ClassroomService::class);
-        $classroom->shouldReceive('teacherTeachesCourse')->andReturn(true);
-        $classroom->shouldReceive('studentEnrolledInCourse')->andReturn(true);
-        $this->app->instance(ClassroomService::class, $classroom);
+        $this->bindClassroomRoster('student-google-1001', 'Alex Rivera', 'alex.rivera@k12louisa.org');
 
         $api = Mockery::mock(DirectoryApiGateway::class);
-        $api->shouldReceive('getUserById')
+        $api->shouldReceive('getUser')
             ->once()
             ->andThrow(DirectoryApiException::requestFailed('(timeout)'));
 
@@ -126,15 +125,12 @@ class GoogleDirectoryServiceTest extends TestCase
 
     public function test_live_directory_reset_end_to_end_with_mocked_gateway(): void
     {
-        $classroom = Mockery::mock(ClassroomService::class);
-        $classroom->shouldReceive('teacherTeachesCourse')->andReturn(true);
-        $classroom->shouldReceive('studentEnrolledInCourse')->andReturn(true);
-        $this->app->instance(ClassroomService::class, $classroom);
+        $this->bindClassroomRoster('student-google-1001', 'Alex Rivera', 'alex.rivera@k12louisa.org');
 
         $api = Mockery::mock(DirectoryApiGateway::class);
-        $api->shouldReceive('getUserById')
+        $api->shouldReceive('getUser')
             ->once()
-            ->with('student-google-1001')
+            ->with('alex.rivera@k12louisa.org')
             ->andReturn([
                 'id' => 'dir-1001',
                 'primaryEmail' => 'alex.rivera@k12louisa.org',
@@ -172,14 +168,17 @@ class GoogleDirectoryServiceTest extends TestCase
 
     public function test_staff_domain_still_blocked_with_live_directory_driver(): void
     {
-        $classroom = Mockery::mock(ClassroomService::class);
-        $classroom->shouldReceive('teacherTeachesCourse')->andReturn(true);
-        $classroom->shouldReceive('studentEnrolledInCourse')->andReturn(true);
-        $this->app->instance(ClassroomService::class, $classroom);
+        // Roster email on student domain that resolves to a staff primary (post-lookup reject).
+        $this->bindClassroomRoster(
+            'student-google-staff',
+            'Staff Person',
+            'staff.alias@k12louisa.org',
+        );
 
         $api = Mockery::mock(DirectoryApiGateway::class);
-        $api->shouldReceive('getUserById')
+        $api->shouldReceive('getUser')
             ->once()
+            ->with('staff.alias@k12louisa.org')
             ->andReturn([
                 'id' => 'dir-staff',
                 'primaryEmail' => 'staff.person@lcps.k12.va.us',
@@ -202,13 +201,10 @@ class GoogleDirectoryServiceTest extends TestCase
 
     public function test_update_password_api_failure_denies_reset(): void
     {
-        $classroom = Mockery::mock(ClassroomService::class);
-        $classroom->shouldReceive('teacherTeachesCourse')->andReturn(true);
-        $classroom->shouldReceive('studentEnrolledInCourse')->andReturn(true);
-        $this->app->instance(ClassroomService::class, $classroom);
+        $this->bindClassroomRoster('student-google-1001', 'Alex Rivera', 'alex.rivera@k12louisa.org');
 
         $api = Mockery::mock(DirectoryApiGateway::class);
-        $api->shouldReceive('getUserById')->once()->andReturn([
+        $api->shouldReceive('getUser')->once()->andReturn([
             'id' => 'dir-1001',
             'primaryEmail' => 'alex.rivera@k12louisa.org',
             'fullName' => 'Alex Rivera',
@@ -228,5 +224,17 @@ class GoogleDirectoryServiceTest extends TestCase
             'course-algebra-101',
             'student-google-1001',
         );
+    }
+
+    private function bindClassroomRoster(string $id, string $name, string $email): void
+    {
+        $classroom = Mockery::mock(ClassroomService::class);
+        $classroom->shouldReceive('teacherTeachesCourse')->andReturn(true);
+        $classroom->shouldReceive('studentEnrolledInCourse')->andReturn(true);
+        $classroom->shouldReceive('studentsForCourse')->andReturn(new Collection([
+            new ClassroomStudent($id, $name, $email),
+        ]));
+        $classroom->shouldReceive('coursesForTeacher')->andReturn(new Collection);
+        $this->app->instance(ClassroomService::class, $classroom);
     }
 }

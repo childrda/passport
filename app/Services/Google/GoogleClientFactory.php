@@ -8,6 +8,10 @@ use Google\Client as GoogleClient;
 use Illuminate\Support\Carbon;
 use Throwable;
 
+/**
+ * Builds a Google API client for the **staff** Workspace tenant using teacher OAuth.
+ * Used for Classroom reads only — never for Directory password resets.
+ */
 class GoogleClientFactory
 {
     /**

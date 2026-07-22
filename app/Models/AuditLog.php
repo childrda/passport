@@ -19,6 +19,7 @@ class AuditLog extends Model
         'student_google_user_id',
         'student_directory_user_id',
         'student_email',
+        'roster_email',
         'student_name',
         'course_id',
         'course_name',

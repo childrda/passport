@@ -14,6 +14,7 @@ use App\Services\GoogleDirectoryService;
 use App\Services\MockGoogleClassroomService;
 use App\Services\MockGoogleDirectoryService;
 use App\Services\TemporaryPasswordGenerator;
+use App\Support\ResetConfiguration;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -70,5 +71,6 @@ class AppServiceProvider extends ServiceProvider
         });
 
         TemporaryPasswordGenerator::validateConfiguration();
+        ResetConfiguration::validate();
     }
 }

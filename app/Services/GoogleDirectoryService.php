@@ -7,8 +7,8 @@ use App\Contracts\DirectoryService;
 use App\DataTransferObjects\DirectoryUser;
 
 /**
- * Live Google Admin SDK Directory API driver.
- * Uses a service account with domain-wide delegation (impersonated admin).
+ * Live Google Admin SDK Directory API driver for the **student** Workspace tenant.
+ * Uses a student-tenant service account with domain-wide delegation.
  */
 class GoogleDirectoryService implements DirectoryService
 {
@@ -16,9 +16,9 @@ class GoogleDirectoryService implements DirectoryService
         private readonly DirectoryApiGateway $api,
     ) {}
 
-    public function findByClassroomUserId(string $classroomGoogleUserId): ?DirectoryUser
+    public function findByRosterEmail(string $email): ?DirectoryUser
     {
-        $user = $this->api->getUserById($classroomGoogleUserId);
+        $user = $this->api->getUser($email);
 
         if ($user === null) {
             return null;

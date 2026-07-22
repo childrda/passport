@@ -97,4 +97,13 @@ class PasswordResetException extends Exception
             allowsRetry: false,
         );
     }
+
+    public static function studentNotInDirectory(): self
+    {
+        return new self(
+            'This student appears in Classroom but has no matching account in the student Google Workspace. Contact Technology Support.',
+            AuditFailureCode::StudentNotInDirectory,
+            allowsRetry: false,
+        );
+    }
 }

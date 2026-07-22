@@ -124,7 +124,7 @@ class PassTwoRemediationTest extends TestCase
     public function test_confirmed_directory_failure_allows_retry_messaging(): void
     {
         $directory = Mockery::mock(\App\Contracts\DirectoryService::class);
-        $directory->shouldReceive('findByClassroomUserId')
+        $directory->shouldReceive('findByRosterEmail')
             ->andReturn(new DirectoryUser(
                 id: 'dir-1001',
                 primaryEmail: 'alex.rivera@k12louisa.org',
@@ -156,7 +156,7 @@ class PassTwoRemediationTest extends TestCase
     public function test_unknown_directory_outcome_forbids_retry(): void
     {
         $directory = Mockery::mock(\App\Contracts\DirectoryService::class);
-        $directory->shouldReceive('findByClassroomUserId')
+        $directory->shouldReceive('findByRosterEmail')
             ->andReturn(new DirectoryUser(
                 id: 'dir-1001',
                 primaryEmail: 'alex.rivera@k12louisa.org',

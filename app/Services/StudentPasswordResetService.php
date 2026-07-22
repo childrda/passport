@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Contracts\ClassroomService;
 use App\Contracts\DirectoryService;
+use App\DataTransferObjects\ClassroomStudent;
 use App\DataTransferObjects\PasswordResetResult;
 use App\Enums\AuditFailureCode;
 use App\Enums\AuditResult;
@@ -28,9 +29,9 @@ class StudentPasswordResetService
     ) {}
 
     /**
-     * Coordinate roster verification, Directory lookup, domain checks, generation, and reset.
-     * Returns the temporary password only to the caller for one-time display.
-     * Every attempt is audited (never the temporary password).
+     * Coordinate roster verification, student-tenant Directory discovery by roster email,
+     * domain checks, generation, and reset. Returns the temporary password only to the
+     * caller for one-time display. Every attempt is audited (never the temporary password).
      *
      * @throws PasswordResetException
      */
@@ -40,6 +41,7 @@ class StudentPasswordResetService
         $courseName = null;
         $studentDirectoryUserId = null;
         $studentEmail = null;
+        $rosterEmail = null;
         $studentName = null;
 
         try {
@@ -65,32 +67,30 @@ class StudentPasswordResetService
             // Resolve course name only after authorization (audit convenience; may be null).
             $courseName = $this->resolveCourseName($teacher, $courseId);
 
+            // Email comes only from the live server-side roster match — never from the browser.
+            $rosterStudent = $this->rosterStudentByMemberId(
+                $teacher,
+                $courseId,
+                $classroomStudentGoogleUserId,
+            );
+            $rosterEmail = $this->normalizeRosterEmail($rosterStudent->email);
+
             try {
-                $directoryUser = $this->directory->findByClassroomUserId($classroomStudentGoogleUserId);
+                $directoryUser = $this->directory->findByRosterEmail($rosterEmail);
             } catch (DirectoryApiException) {
                 throw PasswordResetException::directoryLookupFailed();
             }
 
             if ($directoryUser === null) {
-                throw PasswordResetException::directoryLookupFailed();
+                throw PasswordResetException::studentNotInDirectory();
             }
 
             $studentDirectoryUserId = $directoryUser->id;
             $studentEmail = $directoryUser->primaryEmail;
             $studentName = $directoryUser->fullName;
 
-            $primaryEmail = Str::lower($directoryUser->primaryEmail);
-            $emailDomain = Str::lower(Str::afterLast($primaryEmail, '@'));
-            $studentDomain = Str::lower((string) config('reset.student_domain'));
-            $staffDomain = Str::lower((string) config('reset.staff_domain'));
-
-            if ($emailDomain === $staffDomain) {
-                throw PasswordResetException::staffAccountNotAllowed();
-            }
-
-            if ($emailDomain !== $studentDomain) {
-                throw PasswordResetException::studentDomainRequired((string) config('reset.student_domain'));
-            }
+            // Security boundary: canonical Directory primary email domain check.
+            $this->assertCanonicalStudentPrimaryEmail($directoryUser->primaryEmail);
 
             try {
                 return Cache::lock("student-password-reset:{$directoryUser->id}", 15)
@@ -99,6 +99,7 @@ class StudentPasswordResetService
                         $courseId,
                         $classroomStudentGoogleUserId,
                         $directoryUser,
+                        $rosterEmail,
                         &$courseName,
                         $correlationId,
                     ): PasswordResetResult {
@@ -141,6 +142,7 @@ class StudentPasswordResetService
                             'studentGoogleUserId' => $classroomStudentGoogleUserId,
                             'studentDirectoryUserId' => $updatedUser->id,
                             'studentEmail' => $updatedUser->primaryEmail,
+                            'rosterEmail' => $rosterEmail,
                             'studentName' => $updatedUser->fullName,
                             'result' => AuditResult::Success,
                             'correlationId' => $correlationId,
@@ -165,6 +167,7 @@ class StudentPasswordResetService
                 'studentGoogleUserId' => $classroomStudentGoogleUserId,
                 'studentDirectoryUserId' => $studentDirectoryUserId,
                 'studentEmail' => $studentEmail,
+                'rosterEmail' => $rosterEmail,
                 'studentName' => $studentName,
                 'result' => AuditResult::Failure,
                 'failureReason' => $e->getMessage(),
@@ -181,6 +184,7 @@ class StudentPasswordResetService
                 'studentGoogleUserId' => $classroomStudentGoogleUserId,
                 'studentDirectoryUserId' => $studentDirectoryUserId,
                 'studentEmail' => $studentEmail,
+                'rosterEmail' => $rosterEmail,
                 'studentName' => $studentName,
                 'result' => AuditResult::Failure,
                 'failureReason' => 'An unexpected error occurred. The reset was denied.',
@@ -198,6 +202,77 @@ class StudentPasswordResetService
         }
     }
 
+    /**
+     * @throws PasswordResetException
+     */
+    private function rosterStudentByMemberId(
+        User $teacher,
+        string $courseId,
+        string $classroomStudentGoogleUserId,
+    ): ClassroomStudent {
+        try {
+            $student = $this->classroom->studentsForCourse($teacher, $courseId)
+                ->first(
+                    fn (ClassroomStudent $item): bool => $item->googleUserId === $classroomStudentGoogleUserId
+                );
+        } catch (ClassroomApiException) {
+            throw PasswordResetException::classroomVerificationFailed();
+        }
+
+        if ($student === null) {
+            throw PasswordResetException::unauthorized();
+        }
+
+        return $student;
+    }
+
+    /**
+     * Normalize and pre-check the roster email before any Directory query.
+     *
+     * @throws PasswordResetException
+     */
+    private function normalizeRosterEmail(string $email): string
+    {
+        $normalized = Str::lower(trim($email));
+
+        if ($normalized === '' || ! str_contains($normalized, '@')) {
+            throw PasswordResetException::studentDomainRequired((string) config('reset.student_domain'));
+        }
+
+        $domain = Str::lower(Str::afterLast($normalized, '@'));
+        $studentDomain = Str::lower((string) config('reset.student_domain'));
+        $staffDomain = Str::lower((string) config('reset.staff_domain'));
+
+        if ($domain === $staffDomain) {
+            throw PasswordResetException::staffAccountNotAllowed();
+        }
+
+        if ($domain !== $studentDomain) {
+            throw PasswordResetException::studentDomainRequired((string) config('reset.student_domain'));
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @throws PasswordResetException
+     */
+    private function assertCanonicalStudentPrimaryEmail(string $primaryEmail): void
+    {
+        $primaryEmail = Str::lower(trim($primaryEmail));
+        $emailDomain = Str::lower(Str::afterLast($primaryEmail, '@'));
+        $studentDomain = Str::lower((string) config('reset.student_domain'));
+        $staffDomain = Str::lower((string) config('reset.staff_domain'));
+
+        if ($emailDomain === $staffDomain) {
+            throw PasswordResetException::staffAccountNotAllowed();
+        }
+
+        if ($emailDomain !== $studentDomain) {
+            throw PasswordResetException::studentDomainRequired((string) config('reset.student_domain'));
+        }
+    }
+
     private function resolveCourseName(User $teacher, string $courseId): ?string
     {
         try {
@@ -211,7 +286,6 @@ class StudentPasswordResetService
 
     private function sanitizeExceptionMessage(string $message): string
     {
-        // Strip likely secrets / tokens from diagnostic logs.
         $message = preg_replace('/Bearer\s+\S+/i', 'Bearer [redacted]', $message) ?? $message;
         $message = preg_replace('/password["\s:=]+\S+/i', 'password=[redacted]', $message) ?? $message;
 

@@ -78,6 +78,14 @@ class PasswordResetTest extends TestCase
         $classroom = Mockery::mock(ClassroomService::class);
         $classroom->shouldReceive('teacherTeachesCourse')->andReturn(true);
         $classroom->shouldReceive('studentEnrolledInCourse')->andReturn(true);
+        $classroom->shouldReceive('studentsForCourse')->andReturn(collect([
+            new \App\DataTransferObjects\ClassroomStudent(
+                'student-google-staff',
+                'Staff Person',
+                'staff.person@lcps.k12.va.us',
+            ),
+        ]));
+        $classroom->shouldReceive('coursesForTeacher')->andReturn(collect());
         $this->app->instance(ClassroomService::class, $classroom);
 
         $this->expectException(PasswordResetException::class);
@@ -95,14 +103,22 @@ class PasswordResetTest extends TestCase
         $classroom = Mockery::mock(ClassroomService::class);
         $classroom->shouldReceive('teacherTeachesCourse')->andReturn(true);
         $classroom->shouldReceive('studentEnrolledInCourse')->andReturn(true);
+        $classroom->shouldReceive('studentsForCourse')->andReturn(collect([
+            new \App\DataTransferObjects\ClassroomStudent(
+                'student-google-1001',
+                'Alex Rivera',
+                'alex.rivera@k12louisa.org',
+            ),
+        ]));
+        $classroom->shouldReceive('coursesForTeacher')->andReturn(collect());
         $this->app->instance(ClassroomService::class, $classroom);
 
         $directory = Mockery::mock(DirectoryService::class);
-        $directory->shouldReceive('findByClassroomUserId')->andReturn(null);
+        $directory->shouldReceive('findByRosterEmail')->andReturn(null);
         $this->app->instance(DirectoryService::class, $directory);
 
         $this->expectException(PasswordResetException::class);
-        $this->expectExceptionMessage('Unable to look up the student account');
+        $this->expectExceptionMessage('no matching account in the student Google Workspace');
 
         app(StudentPasswordResetService::class)->reset(
             $this->teacher,

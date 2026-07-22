@@ -12,6 +12,7 @@ will not force a password change at their real login.
 | Doc | Purpose |
 |-----|---------|
 | This README | Full Ubuntu Server + Apache install |
+| [docs/student-tenant.md](docs/student-tenant.md) | **Two-tenant Google Workspace setup (staff vs student)** |
 | [docs/deployment.md](docs/deployment.md) | Env vars, security, operations |
 | [docs/architecture.md](docs/architecture.md) | How the app is structured |
 | [docs/testing.md](docs/testing.md) | Test checklist mapping |
@@ -191,8 +192,12 @@ GOOGLE_OAUTH_CLIENT_ID=
 GOOGLE_OAUTH_CLIENT_SECRET=
 GOOGLE_OAUTH_REDIRECT_URI="${APP_URL}/auth/google/callback"
 
-GOOGLE_SERVICE_ACCOUNT_CREDENTIALS=
-GOOGLE_IMPERSONATED_ADMIN=
+# Leave drivers on mock until Google is configured (Step 10–11)
+CLASSROOM_DRIVER=mock
+DIRECTORY_DRIVER=mock
+
+GOOGLE_DIRECTORY_CREDENTIALS=
+GOOGLE_DIRECTORY_IMPERSONATED_ADMIN=
 ```
 
 Run migrations and prepare Laravel:
@@ -285,6 +290,17 @@ production teachers, use **Sign in with Google** after Step 10.
 
 ## Connect Google Workspace
 
+Passport uses **two separate Workspace tenants**. Follow the full checklist in
+[docs/student-tenant.md](docs/student-tenant.md) before enabling live Directory.
+
+Summary:
+
+1. **Staff tenant (`lcps.k12.va.us`)** — OAuth for teacher sign-in + Classroom (no DWD)
+2. **Student tenant (`k12louisa.org`)** — service account + domain-wide delegation for
+   Directory password resets
+3. **Go/no-go:** confirm server-side Classroom roster returns nonblank `@k12louisa.org`
+   emails for external students before setting `DIRECTORY_DRIVER=google`
+
 You need **two** Google integrations:
 
 1. **OAuth (teacher sign-in + Classroom)** — each teacher authorizes the app
@@ -331,26 +347,33 @@ Only accounts on `STAFF_DOMAIN` are allowed to sign in. Signing in does **not**
 grant Teacher or password-reset access — a System Administrator must assign a
 role and enable **Can reset student passwords** in Users.
 
-### Step 11 — Service account + domain-wide delegation (password reset)
+### Step 11 — Student-tenant service account + domain-wide delegation
 
-1. In the same Google Cloud project:
+Students live in a **separate** Workspace (`STUDENT_DOMAIN`). Directory DWD must be
+configured in that tenant — not the staff tenant where Classroom lives.
+
+**Prerequisite:** with `CLASSROOM_DRIVER=google`, confirm a teacher’s roster shows
+non-blank `@STUDENT_DOMAIN` emails for students. If emails are blank, stop and fix
+Classroom scopes / visibility before enabling Directory.
+
+1. In Google Cloud (student-tenant context):
    **IAM & Admin → Service Accounts → Create service account**
-   - Name: `passport-directory`
-   - No special GCP project roles are required for Workspace DWD
+   - Name: `passport-student-directory`
 2. Open the service account → **Keys → Add key → Create new key → JSON**
 3. Copy the JSON file to the server **outside the web root**, for example:
 
 ```bash
 sudo mkdir -p /etc/passport
-sudo nano /etc/passport/sa-password-reset.json
+sudo nano /etc/passport/sa-student-directory.json
 # paste the JSON, save
-sudo chown root:www-data /etc/passport/sa-password-reset.json
-sudo chmod 640 /etc/passport/sa-password-reset.json
+sudo chown root:www-data /etc/passport/sa-student-directory.json
+sudo chmod 640 /etc/passport/sa-student-directory.json
 ```
 
 4. Note the service account **Client ID** (numeric) from the service account
    details page (not the email alone).
-5. In [Google Workspace Admin](https://admin.google.com/):
+5. In **student-tenant** [Google Workspace Admin](https://admin.google.com/)
+   (signed in as a `STUDENT_DOMAIN` admin):
    **Security → Access and data control → API controls → Domain-wide delegation
    → Manage Domain Wide Delegation → Add new**
    - Client ID: the numeric client ID from step 4
@@ -360,15 +383,15 @@ sudo chmod 640 /etc/passport/sa-password-reset.json
      https://www.googleapis.com/auth/admin.directory.user
      ```
 
-6. Choose a Workspace admin (or delegated admin) who can reset passwords for
-   students on `STUDENT_DOMAIN`. Put that email and the JSON path in `.env`:
+6. Choose a Workspace admin that **exists in the student tenant**. Put that email
+   and the JSON path in `.env`:
 
 ```dotenv
-GOOGLE_SERVICE_ACCOUNT_CREDENTIALS=/etc/passport/sa-password-reset.json
-GOOGLE_IMPERSONATED_ADMIN=workspace-admin@lcps.k12.va.us
+GOOGLE_DIRECTORY_CREDENTIALS=/etc/passport/sa-student-directory.json
+GOOGLE_DIRECTORY_IMPERSONATED_ADMIN=admin@k12louisa.org
 ```
 
-7. Switch drivers to live Google APIs:
+7. Switch drivers to live Google APIs only after the roster-email prerequisite passes:
 
 ```dotenv
 CLASSROOM_DRIVER=google
