@@ -57,7 +57,8 @@ class AdminPanelProvider extends PanelProvider
 
                 return AuditLogResource::getUrl();
             })
-            ->brandName('LCPS Password Reset')
+            ->brandName(config('app.name'))
+            ->favicon(asset('favicon.png'))
             ->colors([
                 'primary' => Color::Blue,
             ])
