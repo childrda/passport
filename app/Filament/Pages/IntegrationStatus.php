@@ -19,7 +19,7 @@ class IntegrationStatus extends Page
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedSignal;
 
-    protected static string|UnitEnum|null $navigationGroup = 'Administration';
+    protected static string|UnitEnum|null $navigationGroup = 'ADMIN';
 
     protected static ?string $navigationLabel = 'Integration status';
 

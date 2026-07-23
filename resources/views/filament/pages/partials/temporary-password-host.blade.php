@@ -35,54 +35,67 @@
             x-on:click.prevent
         ></div>
 
-        <div class="relative w-full max-w-lg rounded-xl bg-white p-6 shadow-xl ring-1 ring-gray-950/5 dark:bg-gray-900 dark:ring-white/10">
-            <h2
-                id="passport-temp-password-title"
-                class="text-base font-semibold text-gray-950 dark:text-white"
-            >
-                Temporary password
-            </h2>
-
-            <div class="mt-4 space-y-4">
-                <p class="text-sm text-gray-600 dark:text-gray-400">
-                    Temporary password for
-                    <span class="font-medium text-gray-950 dark:text-white" x-text="studentName"></span>
-                    (<span>(</span><span x-text="studentEmail"></span><span>)</span>.
-                    Copy it now — it cannot be shown again after you close this dialog.
-                </p>
-
-                <div class="flex items-center gap-2 rounded-lg bg-gray-50 px-3 py-3 ring-1 ring-gray-950/10 dark:bg-white/5 dark:ring-white/10">
-                    <code
-                        class="flex-1 select-all font-mono text-lg tracking-wider text-gray-950 dark:text-white"
-                        x-ref="password"
-                        x-text="password"
-                    ></code>
-                    <button
-                        type="button"
-                        class="fi-btn relative grid-flow-col items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold outline-none transition duration-75 bg-primary-600 text-white hover:bg-primary-500"
-                        x-on:click="
-                            navigator.clipboard.writeText($refs.password.innerText);
-                            copied = true;
-                            setTimeout(() => copied = false, 2000);
-                        "
-                    >
-                        <span x-show="! copied">Copy</span>
-                        <span x-show="copied" x-cloak>Copied</span>
-                    </button>
+        <div class="relative passport-temp-modal__panel">
+            <div class="flex flex-col items-center text-center">
+                <div class="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-400/15 dark:text-emerald-300">
+                    <x-filament::icon icon="heroicon-o-check" class="h-8 w-8" />
                 </div>
 
-                <p class="text-xs text-gray-500 dark:text-gray-400">
-                    The student must change this password at their next Google sign-in.
+                <h2
+                    id="passport-temp-password-title"
+                    class="passport-temp-modal__title justify-center"
+                >
+                    Password Reset Successful!
+                </h2>
+
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    Temporary password for
+                    <span class="font-medium text-gray-950 dark:text-white" x-text="studentName"></span>
+                    (<span>(</span><span x-text="studentEmail"></span><span>)</span>
                 </p>
             </div>
 
-            <div class="mt-6 flex justify-end">
+            <div class="passport-temp-modal__password">
+                <code
+                    class="select-all"
+                    x-ref="password"
+                    x-text="password"
+                ></code>
                 <button
                     type="button"
-                    class="fi-btn relative grid-flow-col items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold outline-none transition duration-75 bg-gray-950 text-white hover:bg-gray-800 dark:bg-white dark:text-gray-950"
+                    class="fi-btn relative grid-flow-col items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold outline-none transition duration-75 bg-primary-600 text-white hover:bg-primary-500 shrink-0"
+                    x-on:click="
+                        navigator.clipboard.writeText($refs.password.innerText);
+                        copied = true;
+                        setTimeout(() => copied = false, 2000);
+                    "
+                >
+                    <span x-show="! copied" class="inline-flex items-center gap-1.5">
+                        <x-filament::icon icon="heroicon-o-clipboard" class="h-4 w-4" />
+                        Copy
+                    </span>
+                    <span x-show="copied" x-cloak class="inline-flex items-center gap-1.5">
+                        <x-filament::icon icon="heroicon-o-check" class="h-4 w-4" />
+                        Copied!
+                    </span>
+                </button>
+            </div>
+
+            <div class="passport-temp-modal__ok">
+                The student will be required to change this password the next time they sign in.
+            </div>
+
+            <p class="mt-3 text-center text-xs font-medium text-gray-500 dark:text-gray-400">
+                This password will not be shown again.
+            </p>
+
+            <div class="mt-5 flex justify-center">
+                <button
+                    type="button"
+                    class="fi-btn relative grid-flow-col items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold outline-none transition duration-75 bg-primary-600 text-white hover:bg-primary-500"
                     x-on:click="dismiss()"
                 >
-                    Done
+                    Close
                 </button>
             </div>
         </div>

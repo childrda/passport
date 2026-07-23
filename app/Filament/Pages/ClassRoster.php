@@ -9,6 +9,7 @@ use App\Exceptions\ClassroomApiException;
 use App\Exceptions\PasswordResetException;
 use App\Models\User;
 use App\Services\StudentPasswordResetService;
+use App\Support\CourseAccent;
 use BackedEnum;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
@@ -24,6 +25,7 @@ use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 use Livewire\Attributes\Locked;
 
@@ -115,14 +117,23 @@ class ClassRoster extends Page implements HasTable
         return $this->courseName ?? 'Class roster';
     }
 
+    public function getHeading(): string|Htmlable
+    {
+        // Custom roster header (breadcrumb + icon) replaces the default page heading.
+        return new HtmlString('<span class="sr-only">'.e($this->courseName ?? 'Class roster').'</span>');
+    }
+
     public function getSubheading(): string|Htmlable|null
     {
-        $parts = array_filter([
-            $this->courseSection,
-            'Students currently enrolled in this class',
-        ]);
+        return null;
+    }
 
-        return implode(' · ', $parts);
+    /**
+     * @return array{bg: string, text: string, initials: string}
+     */
+    public function courseAccent(): array
+    {
+        return CourseAccent::for($this->courseId !== '' ? $this->courseId : 'default');
     }
 
     /**
@@ -132,7 +143,7 @@ class ClassRoster extends Page implements HasTable
     {
         return [
             Action::make('backToClasses')
-                ->label('My Classes')
+                ->label('Back to My Classes')
                 ->icon(Heroicon::OutlinedArrowLeft)
                 ->color('gray')
                 ->url(MyClasses::getUrl()),
@@ -143,15 +154,17 @@ class ClassRoster extends Page implements HasTable
     {
         return $schema
             ->components([
+                SchemaView::make('filament.pages.partials.roster-header'),
                 SchemaView::make('filament.pages.partials.temporary-password-host'),
                 EmbeddedTable::make(),
+                SchemaView::make('filament.pages.partials.roster-security-note'),
             ]);
     }
 
     public function table(Table $table): Table
     {
         return $table
-            ->records(function (): array {
+            ->records(function (?string $search): array {
                 if ($this->courseId === '') {
                     return [];
                 }
@@ -172,7 +185,7 @@ class ClassRoster extends Page implements HasTable
                     return [];
                 }
 
-                return $students
+                $records = $students
                     ->mapWithKeys(fn ($student) => [
                         $student->googleUserId => [
                             'id' => $student->googleUserId,
@@ -180,25 +193,48 @@ class ClassRoster extends Page implements HasTable
                             'email' => $student->email,
                             'google_user_id' => $student->googleUserId,
                         ],
-                    ])
-                    ->all();
+                    ]);
+
+                $term = Str::lower(trim((string) $search));
+
+                if ($term !== '') {
+                    $records = $records->filter(function (array $record) use ($term): bool {
+                        return str_contains(Str::lower($record['full_name']), $term)
+                            || str_contains(Str::lower($record['email']), $term);
+                    });
+                }
+
+                return $records->all();
             })
             ->columns([
                 TextColumn::make('full_name')
                     ->label('Student')
-                    ->searchable(false)
-                    ->sortable(false),
+                    ->html()
+                    ->formatStateUsing(function (string $state): string {
+                        $initials = e(CourseAccent::initials($state));
+                        $name = e($state);
+
+                        return <<<HTML
+                            <div class="passport-student-cell">
+                                <span class="passport-avatar">{$initials}</span>
+                                <span class="font-medium text-gray-950 dark:text-white">{$name}</span>
+                            </div>
+                        HTML;
+                    })
+                    ->searchable(),
                 TextColumn::make('email')
                     ->label('Email')
                     ->copyable()
-                    ->copyMessage('Email copied'),
+                    ->copyMessage('Email copied')
+                    ->searchable(),
             ])
             ->recordActions([
                 Action::make('resetPassword')
                     ->label('Reset Password')
                     ->icon(Heroicon::OutlinedKey)
+                    ->button()
                     ->color(fn (array $record): string => $this->rosterEmailIsOnStudentDomain($record['email'] ?? '')
-                        ? 'danger'
+                        ? 'primary'
                         : 'gray')
                     ->visible(fn (): bool => auth()->user()?->canResetStudentPasswords() ?? false)
                     ->disabled(fn (array $record): bool => ! $this->rosterEmailIsOnStudentDomain($record['email'] ?? ''))
@@ -212,22 +248,28 @@ class ClassRoster extends Page implements HasTable
                         return "This account is not in the student domain (@{$domain}) and cannot have its password reset.";
                     })
                     ->requiresConfirmation()
-                    ->modalHeading(fn (array $record): string => 'Reset password for '.$record['full_name'].'?')
-                    ->modalDescription(
-                        'A temporary password will be generated and shown once. '.
-                        'The student must change it at their next Google sign-in.'
-                    )
-                    ->modalSubmitActionLabel('Reset Password')
-                    ->modalSubmitAction(fn (Action $action): Action => $action->extraAttributes([
-                        'wire:loading.attr' => 'disabled',
-                        'x-data' => '{ submitted: false }',
-                        'x-bind:disabled' => 'submitted',
-                        'x-on:click' => 'submitted = true',
+                    ->modalHeading('Reset Password')
+                    ->modalDescription(null)
+                    ->modalContent(fn (array $record) => view('filament.modals.reset-confirm', [
+                        'studentName' => $record['full_name'],
+                        'studentEmail' => $record['email'],
+                        'initials' => CourseAccent::initials($record['full_name']),
                     ]))
+                    ->modalSubmitActionLabel('Yes, Reset Password')
+                    ->modalSubmitAction(fn (Action $action): Action => $action
+                        ->color('danger')
+                        ->extraAttributes([
+                            'wire:loading.attr' => 'disabled',
+                            'x-data' => '{ submitted: false }',
+                            'x-bind:disabled' => 'submitted',
+                            'x-on:click' => 'submitted = true',
+                        ]))
                     ->action(function (array $record): void {
                         $this->confirmResetPassword($record);
                     }),
             ])
+            ->searchable()
+            ->searchPlaceholder('Search students by name')
             ->paginated(false)
             ->emptyStateHeading('No students enrolled')
             ->emptyStateDescription('This class does not currently have any students.');
@@ -251,7 +293,8 @@ class ClassRoster extends Page implements HasTable
             $notification = Notification::make()
                 ->title($e->allowsRetry ? 'Unable to reset password' : 'Reset not confirmed')
                 ->body($e->getMessage())
-                ->danger();
+                ->danger()
+                ->icon($e->allowsRetry ? 'heroicon-o-exclamation-triangle' : 'heroicon-o-shield-exclamation');
 
             if (! $e->allowsRetry) {
                 $notification->persistent();

@@ -13,8 +13,8 @@ use Filament\Http\Middleware\DispatchServingFilamentEvent;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Support\Enums\Width;
 use Filament\View\PanelsRenderHook;
-use Filament\Widgets\AccountWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -31,6 +31,7 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
+            ->viteTheme('resources/css/filament/admin/theme.css')
             ->login()
             ->homeUrl(function (): string {
                 /** @var User|null $user */
@@ -58,17 +59,21 @@ class AdminPanelProvider extends PanelProvider
                 return AuditLogResource::getUrl();
             })
             ->brandName(config('app.name'))
+            ->brandLogo(fn () => view('filament.brand'))
+            ->brandLogoHeight('2.75rem')
             ->favicon(asset('favicon.png'))
             ->colors([
-                'primary' => Color::Blue,
+                'primary' => Color::hex('#2f5f8f'),
+                'danger' => Color::Rose,
+                'gray' => Color::Slate,
             ])
+            ->sidebarCollapsibleOnDesktop()
+            ->maxContentWidth(Width::SevenExtraLarge)
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
             ->pages([])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
-            ->widgets([
-                AccountWidget::class,
-            ])
+            ->widgets([])
             ->renderHook(
                 PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
                 fn (): string => Blade::render('@include(\'auth.google-login-button\')'),

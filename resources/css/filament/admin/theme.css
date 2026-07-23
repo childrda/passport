@@ -1,0 +1,412 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*';
+@source '../../../../resources/views/filament/**/*';
+
+@theme {
+    --color-passport-navy-50: #eef3f8;
+    --color-passport-navy-100: #d5e1ef;
+    --color-passport-navy-200: #a9c2db;
+    --color-passport-navy-500: #2f5f8f;
+    --color-passport-navy-700: #1a3d63;
+    --color-passport-navy-800: #122f4d;
+    --color-passport-navy-900: #0b2341;
+    --color-passport-navy-950: #07182d;
+    --color-passport-gold: #c9a227;
+}
+
+/* Dark navy sidebar, light content */
+.fi-sidebar {
+    background-color: var(--color-passport-navy-900) !important;
+    border-inline-end-color: color-mix(in oklab, white 8%, transparent) !important;
+}
+
+.fi-sidebar-header {
+    border-bottom-color: color-mix(in oklab, white 10%, transparent) !important;
+    background-color: transparent !important;
+}
+
+.fi-sidebar .fi-logo,
+.fi-sidebar .fi-brand {
+    color: white !important;
+}
+
+.fi-sidebar-nav {
+    --tw-scrollbar-track-color: transparent;
+}
+
+.fi-sidebar-group-label {
+    color: color-mix(in oklab, white 45%, transparent) !important;
+    font-size: 0.6875rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+}
+
+.fi-sidebar-item-button {
+    color: color-mix(in oklab, white 78%, transparent) !important;
+}
+
+.fi-sidebar-item-button:hover {
+    background-color: color-mix(in oklab, white 8%, transparent) !important;
+    color: white !important;
+}
+
+.fi-sidebar-item-active .fi-sidebar-item-button,
+.fi-sidebar-item.fi-active .fi-sidebar-item-button {
+    background-color: color-mix(in oklab, white 14%, transparent) !important;
+    color: white !important;
+}
+
+.fi-sidebar-item-icon {
+    color: color-mix(in oklab, white 65%, transparent) !important;
+}
+
+.fi-sidebar-item-active .fi-sidebar-item-icon,
+.fi-sidebar-item.fi-active .fi-sidebar-item-icon {
+    color: white !important;
+}
+
+.fi-sidebar-footer {
+    border-top-color: color-mix(in oklab, white 10%, transparent) !important;
+    background-color: transparent !important;
+}
+
+.fi-user-menu-trigger,
+.fi-sidebar .fi-avatar,
+.fi-sidebar .fi-user-menu {
+    color: white !important;
+}
+
+.fi-topbar {
+    background-color: white;
+}
+
+.dark .fi-main,
+.dark .fi-body {
+    /* Keep content readable when app dark mode is on */
+}
+
+/* Brand mark in sidebar */
+.passport-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+}
+
+.passport-brand__mark {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.5rem;
+    object-fit: cover;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 1px color-mix(in oklab, white 20%, transparent);
+}
+
+.passport-brand__text {
+    min-width: 0;
+    line-height: 1.15;
+}
+
+.passport-brand__title {
+    color: white;
+    font-size: 0.95rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.passport-brand__subtitle {
+    color: color-mix(in oklab, white 55%, transparent);
+    font-size: 0.7rem;
+    font-weight: 500;
+    margin-top: 0.15rem;
+}
+
+/* Class cards */
+.passport-class-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+}
+
+@media (min-width: 768px) {
+    .passport-class-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+.passport-class-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.1rem 1.25rem;
+    border-radius: 1rem;
+    background: white;
+    border: 1px solid color-mix(in oklab, #0b2341 8%, transparent);
+    box-shadow: 0 1px 2px color-mix(in oklab, #0b2341 6%, transparent);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+    text-decoration: none;
+    color: inherit;
+}
+
+.passport-class-card:hover {
+    border-color: color-mix(in oklab, #2f5f8f 35%, transparent);
+    box-shadow: 0 8px 20px color-mix(in oklab, #0b2341 10%, transparent);
+    transform: translateY(-1px);
+}
+
+.dark .passport-class-card {
+    background: color-mix(in oklab, white 4%, #111827);
+    border-color: color-mix(in oklab, white 10%, transparent);
+}
+
+.passport-class-card__icon {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+.passport-class-card__body {
+    min-width: 0;
+    flex: 1;
+}
+
+.passport-class-card__name {
+    font-weight: 650;
+    font-size: 1rem;
+    color: #0f172a;
+}
+
+.dark .passport-class-card__name {
+    color: white;
+}
+
+.passport-class-card__meta {
+    margin-top: 0.2rem;
+    font-size: 0.875rem;
+    color: #64748b;
+}
+
+.passport-class-card__chevron {
+    color: #94a3b8;
+    flex-shrink: 0;
+}
+
+.passport-attribution {
+    margin-top: 1.25rem;
+    font-size: 0.8rem;
+    color: #64748b;
+}
+
+/* Roster */
+.passport-roster-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.passport-roster-header__left {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    min-width: 0;
+}
+
+.passport-breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: #64748b;
+    margin-bottom: 0.65rem;
+}
+
+.passport-breadcrumb a {
+    color: #2f5f8f;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.passport-breadcrumb a:hover {
+    text-decoration: underline;
+}
+
+.passport-student-cell {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.passport-avatar {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: #e2e8f0;
+    color: #334155;
+    flex-shrink: 0;
+}
+
+.dark .passport-avatar {
+    background: color-mix(in oklab, white 12%, transparent);
+    color: #e2e8f0;
+}
+
+.passport-security-note {
+    margin-top: 1.5rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.9rem 1rem;
+    border-radius: 0.85rem;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1e3a8a;
+    font-size: 0.875rem;
+}
+
+.dark .passport-security-note {
+    background: color-mix(in oklab, #3b82f6 15%, transparent);
+    border-color: color-mix(in oklab, #60a5fa 35%, transparent);
+    color: #dbeafe;
+}
+
+/* Success password modal */
+.passport-temp-modal__panel {
+    border-radius: 1rem;
+    background: white;
+    padding: 1.5rem;
+    box-shadow: 0 20px 40px color-mix(in oklab, black 25%, transparent);
+    max-width: 32rem;
+    width: 100%;
+}
+
+.dark .passport-temp-modal__panel {
+    background: #111827;
+}
+
+.passport-temp-modal__title {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #166534;
+}
+
+.dark .passport-temp-modal__title {
+    color: #86efac;
+}
+
+.passport-temp-modal__password {
+    margin-top: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.1rem;
+    border-radius: 0.85rem;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+}
+
+.dark .passport-temp-modal__password {
+    background: color-mix(in oklab, #f59e0b 12%, transparent);
+    border-color: color-mix(in oklab, #fbbf24 30%, transparent);
+}
+
+.passport-temp-modal__password code {
+    flex: 1;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #92400e;
+    word-break: break-all;
+}
+
+.dark .passport-temp-modal__password code {
+    color: #fde68a;
+}
+
+.passport-temp-modal__ok {
+    margin-top: 1rem;
+    padding: 0.85rem 1rem;
+    border-radius: 0.75rem;
+    background: #ecfdf5;
+    border: 1px solid #a7f3d0;
+    color: #065f46;
+    font-size: 0.875rem;
+}
+
+.dark .passport-temp-modal__ok {
+    background: color-mix(in oklab, #10b981 15%, transparent);
+    border-color: color-mix(in oklab, #34d399 30%, transparent);
+    color: #a7f3d0;
+}
+
+/* Confirm modal content */
+.passport-confirm-warning {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.passport-confirm-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: 0.75rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+}
+
+.dark .passport-confirm-chip {
+    background: color-mix(in oklab, white 5%, transparent);
+    border-color: color-mix(in oklab, white 10%, transparent);
+}
+
+.passport-confirm-amber {
+    padding: 0.85rem 1rem;
+    border-radius: 0.75rem;
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+    color: #92400e;
+    font-size: 0.875rem;
+}
+
+.dark .passport-confirm-amber {
+    background: color-mix(in oklab, #f59e0b 12%, transparent);
+    border-color: color-mix(in oklab, #fbbf24 30%, transparent);
+    color: #fde68a;
+}
+
+/* Muted disabled reset actions */
+.fi-ta-actions .fi-btn.fi-disabled,
+.fi-ta-actions button:disabled {
+    opacity: 0.55;
+}
+
+/* Soften main canvas behind navy sidebar */
+.fi-main-ctn {
+    background-color: #f4f7fb;
+}
+
+.dark .fi-main-ctn {
+    background-color: #0b1220;
+}
