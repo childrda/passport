@@ -52,6 +52,11 @@ class MockClassroomFixture
                             'fullName' => 'Sam Patel',
                             'email' => 'sam.patel@'.$studentDomain,
                         ],
+                        [
+                            'userId' => 'student-google-external',
+                            'fullName' => 'External Guest',
+                            'email' => 'external.guest@gmail.com',
+                        ],
                     ],
                     'course-biology-201' => [
                         [

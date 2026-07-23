@@ -60,9 +60,10 @@ class MockClassroomServiceTest extends TestCase
     {
         $students = $this->classroom->studentsForCourse($this->teacher, 'course-algebra-101');
 
-        $this->assertCount(3, $students);
+        $this->assertCount(4, $students);
         $this->assertTrue($students->contains(fn ($s) => $s->googleUserId === 'student-google-1001'));
         $this->assertTrue($students->contains(fn ($s) => $s->email === 'alex.rivera@k12louisa.org'));
+        $this->assertTrue($students->contains(fn ($s) => $s->googleUserId === 'student-google-external'));
     }
 
     public function test_teacher_cannot_access_another_teachers_roster(): void
@@ -133,8 +134,21 @@ class MockClassroomServiceTest extends TestCase
     {
         $students = $this->classroom->studentsForCourse($this->teacher, 'course-algebra-101');
 
-        foreach ($students as $student) {
+        $onDomain = $students->filter(
+            fn ($student) => str_ends_with(strtolower($student->email), '@k12louisa.org')
+        );
+        $offDomain = $students->reject(
+            fn ($student) => str_ends_with(strtolower($student->email), '@k12louisa.org')
+        );
+
+        $this->assertNotEmpty($onDomain);
+        foreach ($onDomain as $student) {
             $this->assertStringEndsWith('@k12louisa.org', $student->email);
         }
+
+        // External participants may appear on the roster with non-student domains.
+        $this->assertTrue($offDomain->contains(
+            fn ($student) => $student->googleUserId === 'student-google-external'
+        ));
     }
 }

@@ -131,4 +131,15 @@ class TeacherClassroomUiTest extends TestCase
             ->assertActionNotMounted()
             ->assertNotified();
     }
+
+    public function test_reset_password_is_disabled_for_non_student_domain_email(): void
+    {
+        Livewire::actingAs($this->teacher)
+            ->test(ClassRoster::class, ['courseId' => 'course-algebra-101'])
+            ->assertSee('External Guest')
+            ->assertSee('external.guest@gmail.com')
+            ->assertTableActionEnabled('resetPassword', 'student-google-1001')
+            ->assertTableActionDisabled('resetPassword', 'student-google-external')
+            ->assertTableActionHasColor('resetPassword', 'gray', 'student-google-external');
+    }
 }

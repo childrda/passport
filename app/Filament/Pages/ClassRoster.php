@@ -24,6 +24,7 @@ use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Locked;
 
 class ClassRoster extends Page implements HasTable
@@ -196,8 +197,20 @@ class ClassRoster extends Page implements HasTable
                 Action::make('resetPassword')
                     ->label('Reset Password')
                     ->icon(Heroicon::OutlinedKey)
-                    ->color('danger')
+                    ->color(fn (array $record): string => $this->rosterEmailIsOnStudentDomain($record['email'] ?? '')
+                        ? 'danger'
+                        : 'gray')
                     ->visible(fn (): bool => auth()->user()?->canResetStudentPasswords() ?? false)
+                    ->disabled(fn (array $record): bool => ! $this->rosterEmailIsOnStudentDomain($record['email'] ?? ''))
+                    ->tooltip(function (array $record): ?string {
+                        if ($this->rosterEmailIsOnStudentDomain($record['email'] ?? '')) {
+                            return null;
+                        }
+
+                        $domain = (string) config('reset.student_domain');
+
+                        return "This account is not in the student domain (@{$domain}) and cannot have its password reset.";
+                    })
                     ->requiresConfirmation()
                     ->modalHeading(fn (array $record): string => 'Reset password for '.$record['full_name'].'?')
                     ->modalDescription(
@@ -277,5 +290,19 @@ class ClassRoster extends Page implements HasTable
             'student_email' => $result->studentEmail,
             'change_password_at_next_login' => $result->changePasswordAtNextLogin,
         ]);
+    }
+
+    private function rosterEmailIsOnStudentDomain(string $email): bool
+    {
+        $normalized = Str::lower(trim($email));
+
+        if ($normalized === '' || ! str_contains($normalized, '@')) {
+            return false;
+        }
+
+        $domain = Str::lower(Str::afterLast($normalized, '@'));
+        $studentDomain = Str::lower((string) config('reset.student_domain'));
+
+        return $domain !== '' && $domain === $studentDomain;
     }
 }
