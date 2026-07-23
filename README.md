@@ -115,6 +115,18 @@ sudo php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=compose
 composer --version
 ```
 
+### Step 3b — Install Node.js (Filament theme build)
+
+The admin UI uses a custom Vite/Tailwind theme. Production deploys must build
+frontend assets with Node **20+** (Vite does not ship compiled CSS in git).
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+node -v   # v20.x or newer
+npm -v
+```
+
 ### Step 4 — Secure MySQL and create the database
 
 ```bash
@@ -157,6 +169,18 @@ sudo composer install --no-dev --optimize-autoloader
 sudo chown -R www-data:www-data /var/www/passport
 ```
 
+Build the Filament theme (requires Node from Step 3b):
+
+```bash
+cd /var/www/passport
+sudo npm ci
+sudo npm run build
+sudo chown -R www-data:www-data /var/www/passport
+```
+
+`npm run build` writes compiled assets under `public/build/` (gitignored). Without
+this step the admin panel will load without the custom navy theme.
+
 ### Step 6 — Configure the environment
 
 ```bash
@@ -169,7 +193,7 @@ sudo nano /var/www/passport/.env
 Set at least these values:
 
 ```dotenv
-APP_NAME="LCPS Password Reset"
+APP_NAME=Passport
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://password-reset.example.org
@@ -448,12 +472,16 @@ On a developer machine (XAMPP, Homestead, etc.):
 git clone https://github.com/childrda/passport.git
 cd passport
 composer install
+npm install
+npm run build          # or: npm run dev (watch mode while developing)
 cp .env.example .env
 php artisan key:generate
 # Create MySQL database matching DB_* in .env
 php artisan migrate --seed
 php artisan serve
 ```
+
+Node **20+** is required for the Vite Filament theme (`resources/css/filament/admin/theme.css`).
 
 Default drivers are mock fixtures. Seeded users (password: `password`):
 
@@ -474,6 +502,7 @@ php artisan test
 | Task | Command |
 |------|---------|
 | Clear config after `.env` edits | `sudo -u www-data php artisan config:cache` |
+| Rebuild UI theme after pull | `cd /var/www/passport && sudo npm ci && sudo npm run build` |
 | Rotate service-account key | Replace JSON file; keep path in `.env` |
 | View audit trail | Filament → Audit logs |
 | Integration readiness | Filament → Integration status |

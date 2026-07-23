@@ -19,6 +19,7 @@ before setting `DIRECTORY_DRIVER=google`.
 |-----------|-------------|
 | PHP | 8.3+ with `intl`, `zip`, `openssl`, `pdo_mysql` |
 | Composer | 2.x |
+| Node.js | 20+ (Vite build for Filament custom theme) |
 | Database | MySQL 8+ (utf8mb4) |
 | Web server | Apache or Nginx; HTTPS required for Google OAuth |
 | App | Laravel 12 + Filament 4 |
@@ -34,6 +35,8 @@ Condensed app steps:
 git clone https://github.com/childrda/passport.git passport
 cd passport
 composer install --no-dev --optimize-autoloader
+npm ci
+npm run build                 # writes public/build (required for custom theme)
 cp .env.example .env
 php artisan key:generate
 ```
@@ -49,6 +52,8 @@ php artisan route:cache
 php artisan view:cache
 ```
 
+After `git pull`, re-run `npm ci && npm run build` whenever theme/CSS sources change.
+
 Point the web root at `public/`. Example Apache vhost document root:
 `/var/www/passport/public`.
 ## 2. Environment variables
@@ -59,7 +64,7 @@ domains, OAuth secrets, or service-account paths in application code.
 ### Application / database
 
 ```
-APP_NAME="LCPS Password Reset"
+APP_NAME=Passport
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://password-reset.example.org
@@ -219,6 +224,7 @@ php artisan test
 | Task | Command / location |
 |------|--------------------|
 | Clear caches after env change | `php artisan config:cache` |
+| Rebuild Filament theme | `npm ci && npm run build` |
 | View audit trail | Filament → Audit logs |
 | Integration readiness | Filament → Integration status |
 | Rotate SA key | Replace JSON file; update path if needed; no code change |
