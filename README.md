@@ -306,9 +306,10 @@ Open:
 https://password-reset.example.org/admin/login
 ```
 
-You should see the Filament login page. With `CLASSROOM_DRIVER=mock` you can
-still log in with a seeded user (email/password) for a local-style check. For
-production teachers, use **Sign in with Google** after Step 10.
+You should see the Filament login page with **Sign in with Google** only (no
+email/password form). With drivers still on `mock`, you can finish Google OAuth
+setup in Step 10 and sign in with a staff account — new staff users are
+auto-provisioned as enabled Teachers on first sign-in.
 
 ---
 
@@ -367,9 +368,11 @@ Scopes the app requests (teachers approve these on first sign-in):
 - `https://www.googleapis.com/auth/classroom.rosters.readonly`
 - `https://www.googleapis.com/auth/classroom.profile.emails`
 
-Only accounts on `STAFF_DOMAIN` are allowed to sign in. Signing in does **not**
-grant Teacher or password-reset access — a System Administrator must assign a
-role and enable **Can reset student passwords** in Users.
+Only accounts on `STAFF_DOMAIN` are allowed to sign in. A **new** staff user is
+auto-provisioned as an enabled Teacher on first Google sign-in. Existing users
+are not re-provisioned: if an administrator revokes `reset_access_enabled` or
+removes roles, that sticks across later logins. System Administrator and Auditor
+remain manual assignments in Filament → Users.
 
 ### Step 11 — Student-tenant service account + domain-wide delegation
 
@@ -483,7 +486,9 @@ php artisan serve
 
 Node **20+** is required for the Vite Filament theme (`resources/css/filament/admin/theme.css`).
 
-Default drivers are mock fixtures. Seeded users (password: `password`):
+Default drivers are mock fixtures. Seeded users exist for local data fixtures
+(Classroom mock data is keyed to `teacher@` / `other.teacher@`). Panel login is
+Google-only — local email/password is disabled.
 
 | Email | Role |
 |-------|------|

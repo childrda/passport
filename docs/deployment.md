@@ -202,8 +202,9 @@ seed), then manage further users in Filament → **Users**. Do not leave default
 - OAuth secrets, service-account JSON, and domain settings are **not** editable in Filament.
 - Keep `APP_DEBUG=false` in production.
 - Prefer HTTPS only; Google OAuth requires a secure redirect URI in production.
-- Staff Google sign-in does **not** auto-grant Teacher or reset access — provision
-  roles and `reset_access_enabled` in Filament → Users.
+- First Google sign-in for a new staff account auto-provisions **Teacher** with
+  `reset_access_enabled=true`. Admins can still revoke access or change roles in
+  Filament → Users; re-login does not undo that.
 ## 6. Verification after deploy
 
 1. Open `/admin/login` → **Sign in with Google** with a staff account.

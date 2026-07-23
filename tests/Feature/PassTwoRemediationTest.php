@@ -243,7 +243,7 @@ class PassTwoRemediationTest extends TestCase
             ->assertDontSee('Reset Password');
     }
 
-    public function test_google_sync_does_not_auto_assign_teacher(): void
+    public function test_google_sync_auto_assigns_enabled_teacher_on_create_only(): void
     {
         $googleUser = new SocialiteUser;
         $googleUser->map([
@@ -258,9 +258,20 @@ class PassTwoRemediationTest extends TestCase
 
         $user = app(GoogleAuthService::class)->syncUserFromGoogle($googleUser);
 
-        $this->assertFalse($user->isTeacher());
-        $this->assertFalse($user->roles()->exists());
-        $this->assertFalse($user->reset_access_enabled);
+        $this->assertTrue($user->isTeacher());
+        $this->assertTrue($user->reset_access_enabled);
+        $this->assertTrue($user->canResetStudentPasswords());
+        $this->assertFalse($user->isSystemAdministrator());
+        $this->assertFalse($user->isAuditor());
+
+        $user->update(['reset_access_enabled' => false]);
+        $user->roles()->detach();
+
+        $again = app(GoogleAuthService::class)->syncUserFromGoogle($googleUser);
+
+        $this->assertFalse($again->reset_access_enabled);
+        $this->assertFalse($again->roles()->exists());
+        $this->assertFalse($again->canResetStudentPasswords());
     }
 
     public function test_google_id_mismatch_on_email_match_is_rejected(): void

@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Enums\RoleName;
+use App\Filament\Pages\Auth\Login;
 use App\Filament\Pages\MyClasses;
 use App\Filament\Resources\AuditLogs\AuditLogResource;
 use App\Models\User;
@@ -32,7 +33,7 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->viteTheme('resources/css/filament/admin/theme.css')
-            ->login()
+            ->login(Login::class)
             ->homeUrl(function (): string {
                 /** @var User|null $user */
                 $user = auth()->user();

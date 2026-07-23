@@ -6,6 +6,7 @@ use App\Enums\RoleName;
 use App\Models\User;
 use DomainException;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Socialite\Contracts\User as SocialiteUser;
 
@@ -54,7 +55,8 @@ class GoogleAuthService
 
     /**
      * Create or update the local user from a Google OAuth profile.
-     * Does not auto-assign Teacher — roles and reset access are provisioned by admins.
+     * New users are auto-provisioned as enabled Teachers; existing users are not
+     * re-provisioned so administrative revocation survives re-login.
      */
     public function syncUserFromGoogle(SocialiteUser $googleUser): User
     {
@@ -99,7 +101,16 @@ class GoogleAuthService
         }
 
         if ($user === null) {
-            $user = User::query()->create($attributes);
+            $user = DB::transaction(function () use ($attributes): User {
+                $created = User::query()->create([
+                    ...$attributes,
+                    'reset_access_enabled' => true,
+                ]);
+
+                $created->assignRole(RoleName::Teacher);
+
+                return $created;
+            });
         } else {
             $user->fill($attributes);
             $user->save();

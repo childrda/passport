@@ -73,7 +73,9 @@ All deployment values come from `.env` via `config('reset.*')`. See `.env.exampl
 
 - Teachers sign in via Google OAuth (`/auth/google/redirect` → callback).
 - Only emails whose domain exactly matches `config('reset.staff_domain')` are allowed.
-- New staff users are created and assigned the Teacher role; existing roles are preserved.
+- New staff users are created as **enabled Teachers** on first Google sign-in.
+  Existing users are not re-provisioned: revoked `reset_access_enabled` or removed
+  roles survive subsequent logins. System Administrator and Auditor remain manual.
 - OAuth tokens (access + refresh) are stored encrypted for later Classroom API calls.
 - Scopes include Classroom course/roster readonly access (used starting Phase 6).
 - Filament login shows **Sign in with Google**; local password login remains for seeded accounts.
@@ -145,7 +147,7 @@ All deployment values come from `.env` via `config('reset.*')`. See `.env.exampl
 - Temporary password via one-shot JS/Alpine — not Livewire mounted-action state
 - Directory confirmed failure vs outcome-unknown (do-not-retry)
 - Per-student `Cache::lock` + UI double-submit guard
-- Explicit `reset_access_enabled` gate (no auto-Teacher on Google sign-in)
+- Explicit `reset_access_enabled` gate (auto-Teacher + enablement only on first create)
 - Append-only audit logs (model + policy) with UTC, user agent, correlation ID, failure codes
 
 ## Pass three — two-tenant support (`prompts/pass3.md`)
